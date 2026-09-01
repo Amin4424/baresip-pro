@@ -663,4 +663,24 @@
     <string name="microphone_tip">If activated during call, microphone is muted.</string>
     <string name="speakerphone_title">Speakerphone</string>
     <string name="speakerphone_tip">If activated, audio is played via device speakerphone.</string>
+    <string name="no_account_found">No account found</string>
+    <string name="no_call_history">No Call History</string>
+    <string name="no_call_history_help">Calls you make or receive with this account will appear here.</string>
+    <string name="history_disabled">Call History Disabled</string>
+    <string name="history_disabled_help">Call history recording is turned off for this account.</string>
+    <string name="no_chats">No Messages</string>
+    <string name="no_chats_help">Messages sent and received for this account will appear here.</string>
+    <string name="record">Record</string>
+    <string name="recording">Recording</string>
+    <string name="recording_started">Recording started</string>
+    <string name="recording_stopped">Recording stopped</string>
+    <string name="mute">Mute</string>
+    <string name="unmute">Unmute</string>
+    <string name="speaker">Speaker</string>
+    <string name="incoming_call">Incoming call</string>
+    <string name="outgoing_call">Outgoing call</string>
+    <string name="connected">Connected</string>
+    <string name="answer">Answer</string>
+    <string name="decline">Decline</string>
+    <string name="hangup">Hang up</string>
 </resources>

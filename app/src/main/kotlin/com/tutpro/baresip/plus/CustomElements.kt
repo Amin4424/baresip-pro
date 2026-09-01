@@ -75,6 +75,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -712,7 +713,7 @@ object CustomElements {
                                         password.value = ""
                                     }
                                     okAction()
-                                },
+                                }
                             ) {
                                 Text(
                                     text = stringResource(R.string.ok),
@@ -722,6 +723,64 @@ object CustomElements {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    @Composable
+    fun EmptyStateBanner(
+        icon: ImageVector,
+        title: String,
+        message: String,
+        modifier: Modifier = Modifier
+    ) {
+        Card(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 20.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(60.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(30.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = title,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = message,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 20.sp
+                )
             }
         }
     }

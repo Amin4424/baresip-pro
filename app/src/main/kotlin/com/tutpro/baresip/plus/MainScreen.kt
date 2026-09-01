@@ -105,12 +105,17 @@ import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -123,6 +128,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator
 import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -132,8 +138,10 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -564,49 +572,8 @@ fun DefaultLayout(ctx: Context, navController: NavController, viewModel: ViewMod
         }
     }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize().imePadding(),
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
-                Spacer(Modifier.statusBarsPadding())
-                TopAppBar(
-                    viewModel = viewModel,
-                    navController = navController,
-                    onBackupClick = { launchBackupRequest() },
-                    onRestoreClick = { launchRestoreRequest() },
-                    onLogcatClick = { launchLogcatRequest() },
-                    onRestartClick = onRestartClick,
-                    onQuitClick = onQuitClick
-                )
-            }
-        },
-        bottomBar = { BottomBar(ctx, viewModel, navController) },
-        content = { contentPadding ->
-            MainContent(navController, viewModel, contentPadding)
-        }
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun TopAppBar(
-    viewModel: ViewModel,
-    navController: NavController,
-    onBackupClick: () -> Unit,
-    onRestoreClick: () -> Unit,
-    onLogcatClick: () -> Unit,
-    onRestartClick: () -> Unit,
-    onQuitClick: () -> Unit
-) {
-    val ctx = LocalContext.current
-    val currentMicIcon by viewModel.micIcon.collectAsState()
-
-    val recOffImage = Icons.Filled.VoiceOverOff
-    val recOnImage = Icons.Filled.RecordVoiceOver
-    var isRecOn by remember { mutableStateOf(BaresipService.isRecOn) }
-    val isSpeakerOn by viewModel.isSpeakerOn.collectAsState()
-    var menuExpanded by remember { mutableStateOf(false) }
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
     val about = stringResource(R.string.about)
     val settings = stringResource(R.string.configuration)
@@ -617,7 +584,177 @@ private fun TopAppBar(
     val restart = stringResource(R.string.restart)
     val quit = stringResource(R.string.quit)
 
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet(
+                modifier = Modifier.width(LocalConfiguration.current.screenWidthDp.dp * 0.75f),
+                drawerContainerColor = MaterialTheme.colorScheme.surface,
+                drawerTonalElevation = 4.dp
+            ) {
+                Spacer(Modifier.height(12.dp))
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = stringResource(R.string.baresip) + "+",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.app_name),
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+
+                NavigationDrawerItem(
+                    label = { Text(about) },
+                    icon = { Icon(Icons.Outlined.Info, contentDescription = null) },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        navController.navigate("about")
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+                NavigationDrawerItem(
+                    label = { Text(settings) },
+                    icon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        navController.navigate("settings")
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+                NavigationDrawerItem(
+                    label = { Text(accounts) },
+                    icon = { Icon(Icons.Outlined.ManageAccounts, contentDescription = null) },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        navController.navigate("accounts")
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+                NavigationDrawerItem(
+                    label = { Text(backup) },
+                    icon = { Icon(Icons.Outlined.Upload, contentDescription = null) },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        launchBackupRequest()
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+                NavigationDrawerItem(
+                    label = { Text(restore) },
+                    icon = { Icon(Icons.Outlined.Download, contentDescription = null) },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        launchRestoreRequest()
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+                if (VERSION.SDK_INT >= 29) {
+                    NavigationDrawerItem(
+                        label = { Text(logcat) },
+                        icon = { Icon(Icons.AutoMirrored.Outlined.ReceiptLong, contentDescription = null) },
+                        selected = false,
+                        onClick = {
+                            scope.launch { drawerState.close() }
+                            launchLogcatRequest()
+                        },
+                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                    )
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+
+                NavigationDrawerItem(
+                    label = { Text(restart) },
+                    icon = { Icon(Icons.Outlined.RestartAlt, contentDescription = null) },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        onRestartClick()
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+                NavigationDrawerItem(
+                    label = { Text(quit) },
+                    icon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null) },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        onQuitClick()
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = "v${BuildConfig.VERSION_NAME}",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(16.dp).align(Alignment.CenterHorizontally)
+                )
+            }
+        }
+    ) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize().imePadding(),
+            containerColor = MaterialTheme.colorScheme.background,
+            topBar = {
+                Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
+                    Spacer(Modifier.statusBarsPadding())
+                    TopAppBar(
+                        viewModel = viewModel,
+                        navController = navController,
+                        onMenuClick = { scope.launch { drawerState.open() } }
+                    )
+                }
+            },
+            bottomBar = { BottomNavigationBar(ctx, viewModel, navController) },
+            content = { contentPadding ->
+                MainContent(navController, viewModel, contentPadding)
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TopAppBar(
+    viewModel: ViewModel,
+    navController: NavController,
+    onMenuClick: () -> Unit
+) {
+    val ctx = LocalContext.current
+    val currentMicIcon by viewModel.micIcon.collectAsState()
+
+    val recOffImage = Icons.Filled.VoiceOverOff
+    val recOnImage = Icons.Filled.RecordVoiceOver
+    var isRecOn by remember { mutableStateOf(BaresipService.isRecOn) }
+    val isSpeakerOn by viewModel.isSpeakerOn.collectAsState()
+
     TopAppBar(
+        navigationIcon = {
+            IconButton(onClick = onMenuClick) {
+                Icon(
+                    imageVector = Icons.Filled.Menu,
+                    contentDescription = "Navigation Menu",
+                    tint = MaterialTheme.colorScheme.onPrimary
+                )
+            }
+        },
         title = {
             Text(
                 text = stringResource(R.string.baresip) + "+",
@@ -628,6 +765,7 @@ private fun TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.primary,
             titleContentColor = MaterialTheme.colorScheme.onPrimary,
+            navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
             actionIconContentColor = MaterialTheme.colorScheme.onPrimary
         ),
         windowInsets = WindowInsets(0, 0, 0, 0),
@@ -751,200 +889,8 @@ private fun TopAppBar(
                     modifier = Modifier.size(40.dp)
                 )
             }
-
-            IconButton(
-                onClick = { menuExpanded = !menuExpanded }
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Menu,
-                    contentDescription = "Menu",
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
-            }
-
-            DropdownMenu(
-                expanded = menuExpanded,
-                onDismissRequest = { menuExpanded = false },
-                menuItems = listOfNotNull(
-                    MenuItem(about, Icons.Outlined.Info),
-                    MenuItem(settings, Icons.Outlined.Settings),
-                    MenuItem(accounts, Icons.Outlined.ManageAccounts),
-                    MenuItem(backup, Icons.Outlined.Upload),
-                    MenuItem(restore, Icons.Outlined.Download),
-                    if (VERSION.SDK_INT >= 29) MenuItem(logcat, Icons.AutoMirrored.Outlined.ReceiptLong) else null,
-                    MenuItem(restart, Icons.Outlined.RestartAlt),
-                    MenuItem(quit, Icons.AutoMirrored.Filled.Logout)
-                ),
-                onItemClick = { selectedItem ->
-                    menuExpanded = false
-                    when (selectedItem) {
-                        about -> { navController.navigate("about") }
-                        settings -> { navController.navigate("settings") }
-                        accounts -> { navController.navigate("accounts") }
-                        backup -> onBackupClick()
-                        restore -> onRestoreClick()
-                        logcat -> onLogcatClick()
-                        restart -> onRestartClick()
-                        quit -> onQuitClick()
-                    }
-                }
-            )
         }
     )
-}
-
-@Composable
-private fun BottomBar(ctx: Context, viewModel: ViewModel, navController: NavController) {
-
-    val aor by viewModel.selectedAor.collectAsState()
-    val accountUpdate by viewModel.accountUpdate.collectAsState()
-
-    val showVmIcon = remember(aor, accountUpdate) {
-        if (aor.isNotEmpty()) Account.ofAor(aor)?.vmUri?.isNotEmpty() ?: false else false
-    }
-    val hasNewVoicemail = remember(aor, accountUpdate) {
-        if (aor.isNotEmpty()) (Account.ofAor(aor)?.vmNew ?: 0) > 0 else false
-    }
-    val isMobile = remember(aor, accountUpdate) {
-        if (aor.isNotEmpty()) Account.ofAor(aor)?.isMobile ?: false else false
-    }
-    val hasUnreadMessages = remember(aor, accountUpdate) {
-        if (aor.isNotEmpty()) Account.ofAor(aor)?.unreadMessages ?: false else false
-    }
-    val hasMissedCalls = remember(aor, accountUpdate) {
-        if (aor.isNotEmpty()) Account.ofAor(aor)?.missedCalls ?: false else false
-    }
-
-    val isDialpadVisible by viewModel.isDialpadVisible.collectAsState()
-
-    val buttonSize = 48.dp
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(bottom = 16.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-
-        if (showVmIcon)
-            IconButton(
-                // Disable the button if no account is selected
-                enabled = aor.isNotEmpty(),
-                onClick = {
-                    val ua = UserAgent.ofAor(aor)!!
-                    val acc = ua.account
-                    if (acc.vmUri.isNotEmpty()) {
-                        if (isMobile) {
-                            val intent = Intent(ctx, MainActivity::class.java)
-                            intent.putExtra("uap", ua.uap)
-                            intent.putExtra("peer", acc.vmUri)
-                            handleIntent(ctx, viewModel, intent, "call")
-                        } else {
-                            dialogTitle.value = ctx.getString(R.string.voicemail_messages)
-                            dialogMessage.value = acc.vmMessages(ctx)
-                            firstText.value = ctx.getString(R.string.cancel)
-                            onFirstClicked.value = {}
-                            secondText.value = ""
-                            lastText.value = ctx.getString(R.string.listen)
-                            onLastClicked.value = {
-                                val intent = Intent(ctx, MainActivity::class.java)
-                                intent.putExtra("uap", ua.uap)
-                                intent.putExtra("peer", acc.vmUri)
-                                handleIntent(ctx, viewModel, intent, "call")
-                            }
-                            showDialog.value = true
-                        }
-                    }
-                },
-                modifier = Modifier
-                    .weight(1f)
-                    .size(buttonSize)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Voicemail,
-                    contentDescription = null,
-                    Modifier.size(buttonSize),
-                    tint = if (hasNewVoicemail) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary
-                )
-            }
-
-        IconButton(
-            onClick = { navController.navigate("contacts") },
-            modifier = Modifier
-                .weight(1f)
-                .size(buttonSize)
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Person,
-                contentDescription = null,
-                Modifier.size(buttonSize),
-                tint = MaterialTheme.colorScheme.secondary
-            )
-        }
-
-        IconButton(
-            enabled = aor.isNotEmpty(),
-            onClick = {
-                if (isMobile) {
-                    if (!Utils.isDefaultSmsApp(ctx)) {
-                        alertTitle.value = ctx.getString(R.string.notice)
-                        alertMessage.value = ctx.getString(R.string.enable_default_messaging)
-                        showAlert.value = true
-                        return@IconButton
-                    }
-                }
-                navController.navigate("chats/$aor")
-            },
-            modifier = Modifier.weight(1f).size(buttonSize)
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.Chat,
-                contentDescription = null,
-                Modifier.size(buttonSize),
-                tint = if (hasUnreadMessages)
-                    MaterialTheme.colorScheme.error
-                else
-                    MaterialTheme.colorScheme.secondary
-            )
-        }
-
-        IconButton(
-            enabled = aor.isNotEmpty(),
-            onClick = {
-                navController.navigate("calls/$aor")
-            },
-            modifier = Modifier
-                .weight(1f)
-                .size(buttonSize)
-        ) {
-            Icon(
-                imageVector = Icons.Filled.History,
-                contentDescription = null,
-                Modifier.size(buttonSize),
-                tint = if (hasMissedCalls) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary
-            )
-        }
-
-        IconButton(
-            onClick = { viewModel.toggleDialpadVisibility() },
-            modifier = Modifier
-                .weight(1f)
-                .size(buttonSize),
-            enabled = dialpadButtonEnabled.value
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Dialpad,
-                contentDescription = null,
-                modifier = Modifier.size(buttonSize),
-                tint = if (isDialpadVisible)
-                    MaterialTheme.colorScheme.error
-                else
-                    MaterialTheme.colorScheme.secondary
-            )
-        }
-    }
 }
 
 enum class Video { NONE, ON, PENDING, OFF }
@@ -3079,20 +3025,17 @@ fun handleServiceEvent(ctx: Context, viewModel: ViewModel, event: String, params
         "call rejected" -> {}
         "call outgoing" -> {
             val callp = params[1] as Long
-            if (!BaresipService.isMainVisible)
-                viewModel.navigateToHome()
+            viewModel.navigateToCall()
             spinToAor(viewModel, aor, Call.ofCallp(callp))
         }
         "call incoming" -> {
             val callp = params[1] as Long
-            if (!BaresipService.isMainVisible)
-                viewModel.navigateToHome()
+            viewModel.navigateToCall()
             spinToAor(viewModel, aor, Call.ofCallp(callp))
         }
         "call answered" -> {
             val callp = params[1] as Long
-            if (!BaresipService.isMainVisible)
-                viewModel.navigateToHome()
+            viewModel.navigateToCall()
             spinToAor(viewModel, aor, Call.ofCallp(callp))
         }
         "call redirect", "video call redirect" -> {
@@ -3120,6 +3063,7 @@ fun handleServiceEvent(ctx: Context, viewModel: ViewModel, event: String, params
         }
         "call established" -> {
             (ctx as? Activity)?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            viewModel.navigateToCall()
             if (aor == viewModel.selectedAor.value) {
                 viewModel.dialerState.callButtonsEnabled.value = true // Re-enable dialer
                 val callp = params[1] as Long

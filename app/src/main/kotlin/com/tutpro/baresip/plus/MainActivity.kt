@@ -266,6 +266,8 @@ class MainActivity : ComponentActivity() {
                             }
                             is NavigationCommand.NavigateToChats ->
                                 navController.navigate("chats") { launchSingleTop = true }
+                            is NavigationCommand.NavigateToCall ->
+                                navController.navigate("call")
                             is NavigationCommand.NavigateToHome ->
                                 navController.navigate("main") {
                                     popUpTo("main") { inclusive = true }
@@ -282,6 +284,7 @@ class MainActivity : ComponentActivity() {
                         onRestartApp = { restartApp() },
                         onQuitApp = { quitApp() }
                     )
+                    callScreenRoute(navController, viewModel)
                     aboutScreenRoute(navController)
                     settingsScreenRoute(
                         navController = navController,
@@ -291,13 +294,13 @@ class MainActivity : ComponentActivity() {
                     audioScreenRoute(navController)
                     accountScreenRoute(navController)
                     codecsScreenRoute(navController)
-                    contactsScreenRoute(navController)
+                    contactsScreenRoute(navController, viewModel)
                     contactScreenRoute(navController, viewModel)
                     callsScreenRoute(navController, viewModel)
                     callDetailsScreenRoute(navController, viewModel)
                     blockedScreenRoute(navController)
                     blockingScreenRoute(navController)
-                    chatsScreenRoute(navController)
+                    chatsScreenRoute(navController, viewModel)
                     chatScreenRoute(navController, viewModel)
                 }
             }
