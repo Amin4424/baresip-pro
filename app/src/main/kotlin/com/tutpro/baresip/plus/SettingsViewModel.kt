@@ -25,7 +25,7 @@ class SettingsViewModel: ViewModel() {
     val verifyServer = MutableStateFlow(false)
     val caFile = MutableStateFlow(false)
     val userAgent = MutableStateFlow("")
-    val uniqueContactUri =  MutableStateFlow(true)
+    val uniqueContactUri =  MutableStateFlow(false)
     val videoSize = MutableStateFlow("")
     val videoFps = MutableStateFlow("")
     val batteryOptimizations = MutableStateFlow(false)
