@@ -683,4 +683,10 @@
     <string name="answer">Answer</string>
     <string name="decline">Decline</string>
     <string name="hangup">Hang up</string>
+    <string name="calling">Calling</string>
+    <string name="ringing">Ringing</string>
+    <string name="hold">Hold</string>
+    <string name="resume">Resume</string>
+    <string name="keypad">Keypad</string>
+    <string name="video">Video</string>
 </resources>
