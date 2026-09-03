@@ -48,6 +48,13 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -314,20 +321,13 @@ private fun ContactScreen(
         modifier = Modifier.fillMaxSize().imePadding(),
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.background)
-                    .padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding())
-            ) {
-                TopAppBar(
-                    title = title,
-                    isEditing = screenState.isEditing,
-                    onBack = onBack,
-                    onCheck = onCheck,
-                    onEdit = onEdit
-                )
-            }
+            TopAppBar(
+                title = title,
+                isEditing = screenState.isEditing,
+                onBack = onBack,
+                onCheck = onCheck,
+                onEdit = onEdit
+            )
         },
         content = { contentPadding ->
             if (!screenState.isLoading) {
@@ -348,7 +348,6 @@ private fun ContactScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TopAppBar(
     title: String,
@@ -357,36 +356,24 @@ private fun TopAppBar(
     onCheck: () -> Unit,
     onEdit: () -> Unit
 ) {
-    TopAppBar(
-        title = { Text(text = title, fontWeight = FontWeight.Bold) },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.primary,
-            navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
-            titleContentColor = MaterialTheme.colorScheme.onPrimary,
-            actionIconContentColor = MaterialTheme.colorScheme.onPrimary
-        ),
-        windowInsets = WindowInsets(0, 0, 0, 0),
-        navigationIcon = {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                )
-            }
-        },
+    CustomElements.ModernTopAppBar(
+        title = title,
+        onBack = onBack,
         actions = {
             if (isEditing)
                 IconButton(onClick = onCheck) {
                     Icon(
                         imageVector = Icons.Filled.Check,
-                        contentDescription = "Save"
+                        contentDescription = "Save",
+                        tint = Color.White
                     )
                 }
             else
                 IconButton(onClick = onEdit) {
                     Icon(
                         imageVector = Icons.Filled.Edit,
-                        contentDescription = "Edit"
+                        contentDescription = "Edit",
+                        tint = Color.White
                     )
                 }
         }
@@ -424,77 +411,135 @@ private fun ContactContent(
             .padding(contentPadding)
             .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 52.dp)
             .verticalScroll(scrollState),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        AvatarSection(
-            ctx = ctx,
-            isEditing = screenState.isEditing,
-            name = screenState.name,
-            color = screenState.color,
-            currentAvatarUri = screenState.avatarImageUri,
-            onNewAvatarChosen = { processedTmpFile, generatedNewId ->
-                onStateChange(
-                    screenState.copy(
-                        avatarImageUri = Uri.fromFile(processedTmpFile).toString(),
-                        tmpAvatarFile = processedTmpFile,
-                        newId = generatedNewId
-                    )
-                )
-            },
-            onAvatarColorChange = { newRandomColor ->
-                screenState.tmpAvatarFile?.let {
-                    if (it.exists())
-                        Utils.deleteFile(it)
-                }
-                onStateChange(
-                    screenState.copy(
-                        color = newRandomColor,
-                        avatarImageUri = null,
-                        tmpAvatarFile = null
-                    )
-                )
-            }
-        )
-
-        ContactNameSection(
-            name = screenState.name,
-            isEditing = screenState.isEditing,
-            new = screenState.new,
-            onNameChange = { newName -> onStateChange(screenState.copy(name = newName)) }
-        )
-
-        UrisSection(
-            ctx = ctx,
-            viewModel = viewModel,
-            navController = navController,
-            uris = screenState.uris,
-            isEditing = screenState.isEditing,
-            onUrisChange = { newUris -> onStateChange(screenState.copy(uris = newUris)) }
-        )
-
-        EmailSection(
-            ctx = ctx,
-            email = screenState.email,
-            isEditing = screenState.isEditing,
-            onEmailChange = { newEmail -> onStateChange(screenState.copy(email = newEmail)) }
-        )
-
-        if (screenState.isEditing) {
-            FavoriteSection(
-                ctx = ctx,
-                favorite = screenState.favorite,
-                onFavoriteChange = { newFavorite ->
-                    onStateChange(screenState.copy(favorite = newFavorite))
-                }
-            )
-            if (screenState.new && BaresipService.contactsMode == "both")
-                AndroidSection(
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                AvatarSection(
                     ctx = ctx,
-                    android = screenState.android,
-                    onAndroidChange = { newAndroid ->
-                        onStateChange(screenState.copy(android = newAndroid))
+                    isEditing = screenState.isEditing,
+                    name = screenState.name,
+                    color = screenState.color,
+                    currentAvatarUri = screenState.avatarImageUri,
+                    onNewAvatarChosen = { processedTmpFile, generatedNewId ->
+                        onStateChange(
+                            screenState.copy(
+                                avatarImageUri = Uri.fromFile(processedTmpFile).toString(),
+                                tmpAvatarFile = processedTmpFile,
+                                newId = generatedNewId
+                            )
+                        )
+                    },
+                    onAvatarColorChange = { newRandomColor ->
+                        screenState.tmpAvatarFile?.let {
+                            if (it.exists())
+                                Utils.deleteFile(it)
+                        }
+                        onStateChange(
+                            screenState.copy(
+                                color = newRandomColor,
+                                avatarImageUri = null,
+                                tmpAvatarFile = null
+                            )
+                        )
                     }
                 )
+
+                ContactNameSection(
+                    name = screenState.name,
+                    isEditing = screenState.isEditing,
+                    new = screenState.new,
+                    onNameChange = { newName -> onStateChange(screenState.copy(name = newName)) }
+                )
+            }
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "Numbers & Addresses",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                UrisSection(
+                    ctx = ctx,
+                    viewModel = viewModel,
+                    navController = navController,
+                    uris = screenState.uris,
+                    isEditing = screenState.isEditing,
+                    onUrisChange = { newUris -> onStateChange(screenState.copy(uris = newUris)) }
+                )
+            }
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Additional Info",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                EmailSection(
+                    ctx = ctx,
+                    email = screenState.email,
+                    isEditing = screenState.isEditing,
+                    onEmailChange = { newEmail -> onStateChange(screenState.copy(email = newEmail)) }
+                )
+
+                if (screenState.isEditing) {
+                    FavoriteSection(
+                        ctx = ctx,
+                        favorite = screenState.favorite,
+                        onFavoriteChange = { newFavorite ->
+                            onStateChange(screenState.copy(favorite = newFavorite))
+                        }
+                    )
+                    if (screenState.new && BaresipService.contactsMode == "both")
+                        AndroidSection(
+                            ctx = ctx,
+                            android = screenState.android,
+                            onAndroidChange = { newAndroid ->
+                                onStateChange(screenState.copy(android = newAndroid))
+                            }
+                        )
+                }
+            }
         }
     }
 }
@@ -553,34 +598,58 @@ private fun AvatarSection(
         horizontalArrangement = Arrangement.Center
     ) {
         Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(avatarSize.dp)
-                .clip(CircleShape)
-                .background(if (currentAvatarUri == null) Color(color) else Color.Transparent)
-                .let { modifier ->
-                    if (isEditing)
-                        modifier.combinedClickable(
-                            onClick = { avatarImagePicker.launch("image/*") },
-                            onLongClick = { onAvatarColorChange(Utils.randomColor()) }
-                        )
-                    else
-                        modifier
-                }
+            contentAlignment = Alignment.BottomEnd,
+            modifier = Modifier.size((avatarSize + 10).dp)
         ) {
-            if (currentAvatarUri == null)
-                Box(modifier = Modifier.size(avatarSize.dp), contentAlignment = Alignment.Center) {
-                    Canvas(modifier = Modifier.fillMaxSize()) { drawCircle(SolidColor(Color(color))) }
-                    val text = if (name.isNotBlank()) name.take(1).uppercase() else "?"
-                    Text(text, fontSize = 72.sp, color = Color.White)
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(avatarSize.dp)
+                    .align(Alignment.Center)
+                    .clip(CircleShape)
+                    .background(if (currentAvatarUri == null) Color(color) else Color.Transparent)
+                    .let { modifier ->
+                        if (isEditing)
+                            modifier.combinedClickable(
+                                onClick = { avatarImagePicker.launch("image/*") },
+                                onLongClick = { onAvatarColorChange(Utils.randomColor()) }
+                            )
+                        else
+                            modifier
+                    }
+            ) {
+                if (currentAvatarUri == null)
+                    Box(modifier = Modifier.size(avatarSize.dp), contentAlignment = Alignment.Center) {
+                        Canvas(modifier = Modifier.fillMaxSize()) { drawCircle(SolidColor(Color(color))) }
+                        val text = if (name.isNotBlank()) name.take(1).uppercase() else "?"
+                        Text(text, fontSize = 72.sp, color = Color.White)
+                    }
+                else
+                    Image(
+                        painter = rememberAsyncImagePainter(model = currentAvatarUri),
+                        contentDescription = stringResource(R.string.avatar_image),
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(avatarSize.dp).clip(CircleShape)
+                    )
+            }
+            if (isEditing) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary)
+                        .border(2.dp, MaterialTheme.colorScheme.background, CircleShape)
+                        .align(Alignment.BottomEnd),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.PhotoCamera,
+                        contentDescription = "Change photo",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
-            else
-                Image(
-                    painter = rememberAsyncImagePainter(model = currentAvatarUri),
-                    contentDescription = stringResource(R.string.avatar_image),
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(avatarSize.dp).clip(CircleShape)
-                )
+            }
         }
     }
 }
@@ -752,35 +821,40 @@ private fun UrisSection(
                                 ua.account.isMobile || ua.account.telProvider != ""
                             else
                                 !ua.account.isMobile)
-                        IconButton(
-                            onClick = {
-                                if (ua.account.isMobile && ua.status != circleGreen.getValue(colorblind)) {
-                                    alertTitle.value = ctx.getString(R.string.notice)
-                                    alertMessage.value = Utils.mobileStatusMessage(ctx, ua.status)
-                                    showAlert.value = true
-                                }
-                                else if (ua.account.isMobile && !Utils.isDefaultSmsApp(ctx)) {
-                                    alertTitle.value = ctx.getString(R.string.notice)
-                                    alertMessage.value = ctx.getString(R.string.enable_default_messaging)
-                                    showAlert.value = true
-                                }
-                                else {
-                                    val intent = Intent(ctx, MainActivity::class.java)
-                                    intent.putExtra("uap", ua.uap)
-                                    intent.putExtra("peer", uri)
-                                    handleIntent(ctx, viewModel, intent, "message")
-                                    navController.navigate("main") {
-                                        popUpTo("main") { inclusive = false }
-                                        launchSingleTop = true
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+                                .clickable {
+                                    if (ua.account.isMobile && ua.status != circleGreen.getValue(colorblind)) {
+                                        alertTitle.value = ctx.getString(R.string.notice)
+                                        alertMessage.value = Utils.mobileStatusMessage(ctx, ua.status)
+                                        showAlert.value = true
                                     }
-                                }
-                            }
+                                    else if (ua.account.isMobile && !Utils.isDefaultSmsApp(ctx)) {
+                                        alertTitle.value = ctx.getString(R.string.notice)
+                                        alertMessage.value = ctx.getString(R.string.enable_default_messaging)
+                                        showAlert.value = true
+                                    }
+                                    else {
+                                        val intent = Intent(ctx, MainActivity::class.java)
+                                        intent.putExtra("uap", ua.uap)
+                                        intent.putExtra("peer", uri)
+                                        handleIntent(ctx, viewModel, intent, "message")
+                                        navController.navigate("main") {
+                                            popUpTo("main") { inclusive = false }
+                                            launchSingleTop = true
+                                        }
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.Chat,
                                 contentDescription = "Send Message",
-                                modifier = Modifier.size(24.dp),
-                                tint = MaterialTheme.colorScheme.onBackground
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.primary
                             )
                         }
 
@@ -789,60 +863,72 @@ private fun UrisSection(
                             ua.account.isMobile || ua.account.telProvider != ""
                         else
                             !ua.account.isMobile))
-                        IconButton(
-                            onClick = {
-                                if (ua.account.isMobile && ua.status != circleGreen.getValue(colorblind)) {
-                                    alertTitle.value = ctx.getString(R.string.notice)
-                                    alertMessage.value = Utils.mobileStatusMessage(ctx, ua.status)
-                                    showAlert.value = true
-                                }
-                                else {
-                                    val intent = Intent(ctx, MainActivity::class.java)
-                                    intent.putExtra("uap", ua.uap)
-                                    intent.putExtra("peer", uri)
-                                    handleIntent(ctx, viewModel, intent, BaresipService.contactAction)
-                                    navController.navigate("main") {
-                                        popUpTo("main") { inclusive = false }
-                                        launchSingleTop = true
+                        Box(
+                            modifier = Modifier
+                                .padding(start = 8.dp)
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF00E676).copy(alpha = 0.18f))
+                                .clickable {
+                                    if (ua.account.isMobile && ua.status != circleGreen.getValue(colorblind)) {
+                                        alertTitle.value = ctx.getString(R.string.notice)
+                                        alertMessage.value = Utils.mobileStatusMessage(ctx, ua.status)
+                                        showAlert.value = true
                                     }
-                                }
-                            }
+                                    else {
+                                        val intent = Intent(ctx, MainActivity::class.java)
+                                        intent.putExtra("uap", ua.uap)
+                                        intent.putExtra("peer", uri)
+                                        handleIntent(ctx, viewModel, intent, BaresipService.contactAction)
+                                        navController.navigate("main") {
+                                            popUpTo("main") { inclusive = false }
+                                            launchSingleTop = true
+                                        }
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Call,
                                 contentDescription = "Call",
-                                modifier = Modifier.size(24.dp),
-                                tint = MaterialTheme.colorScheme.onBackground
+                                modifier = Modifier.size(20.dp),
+                                tint = Color(0xFF00E676)
                             )
                         }
 
                     // Video Call Button
                     if (ua != null && !ua.account.isMobile && BaresipService.contactAction != "dial")
-                        IconButton(
-                            onClick = {
-                                if (ua.account.isMobile && Utils.isAirplaneModeOn(ctx)) {
-                                    alertTitle.value = ctx.getString(R.string.notice)
-                                    alertMessage.value = ctx.getString(R.string.airplane_mode)
-                                    showAlert.value = true
-                                } else {
-                                    val intent = Intent(ctx, MainActivity::class.java)
-                                    intent.putExtra("uap", ua.uap)
-                                    intent.putExtra("peer", uri)
-                                    handleIntent(ctx, viewModel, intent, "video " + BaresipService.contactAction)
-                                    navController.navigate("main") {
-                                        popUpTo("main") { inclusive = false }
-                                        launchSingleTop = true
+                        Box(
+                            modifier = Modifier
+                                .padding(start = 8.dp)
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF8B5CF6).copy(alpha = 0.18f))
+                                .clickable {
+                                    if (ua.account.isMobile && Utils.isAirplaneModeOn(ctx)) {
+                                        alertTitle.value = ctx.getString(R.string.notice)
+                                        alertMessage.value = ctx.getString(R.string.airplane_mode)
+                                        showAlert.value = true
+                                    } else {
+                                        val intent = Intent(ctx, MainActivity::class.java)
+                                        intent.putExtra("uap", ua.uap)
+                                        intent.putExtra("peer", uri)
+                                        handleIntent(ctx, viewModel, intent, "video " + BaresipService.contactAction)
+                                        navController.navigate("main") {
+                                            popUpTo("main") { inclusive = false }
+                                            launchSingleTop = true
+                                        }
                                     }
-                                }
-                            }
+                                },
+                            contentAlignment = Alignment.Center
                         ) {
-                        Icon(
-                            imageVector = Icons.Filled.Videocam,
-                            contentDescription = "Video call",
-                            modifier = Modifier.size(28.dp),
-                            tint = MaterialTheme.colorScheme.onBackground
-                        )
-                    }
+                            Icon(
+                                imageVector = Icons.Filled.Videocam,
+                                contentDescription = "Video call",
+                                modifier = Modifier.size(22.dp),
+                                tint = Color(0xFF8B5CF6)
+                            )
+                        }
                 }
             }
     }

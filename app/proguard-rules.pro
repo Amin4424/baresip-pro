@@ -11,3 +11,7 @@
 -keepattributes LineNumberTable,SourceFile
 -keep class com.tutpro.baresip.plus.Camera2 { *; }
 -dontobfuscate
+-keepclasseswithmembers class * {
+    native <methods>;
+}
+-keep class com.tutpro.baresip.plus.** { *; }

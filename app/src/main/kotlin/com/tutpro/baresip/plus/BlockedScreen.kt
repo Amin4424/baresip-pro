@@ -6,6 +6,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -13,20 +14,34 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Menu
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -41,6 +56,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -105,10 +121,7 @@ private fun BlockedScreen(navController: NavController, request: String, aor: St
         modifier = Modifier.fillMaxSize().imePadding(),
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
-                Spacer(Modifier.statusBarsPadding())
-                TopAppBar(navController, account, request, blocked)
-            }
+            TopAppBar(navController, account, request, blocked)
         },
         content = { contentPadding ->
             if (isBlockedLoaded)
@@ -117,7 +130,6 @@ private fun BlockedScreen(navController: NavController, request: String, aor: St
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TopAppBar(
     navController: NavController,
@@ -139,39 +151,24 @@ private fun TopAppBar(
         onLastClicked = lastAction.value,
     )
 
-    TopAppBar(
-        title = {
-            Text(
-                text = if (request == "invite")
-                    stringResource(R.string.blocked_calls)
-                else
-                    stringResource(R.string.blocked_messages),
-                fontWeight = FontWeight.Bold
-            )
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.primary,
-            navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
-            titleContentColor = MaterialTheme.colorScheme.onPrimary,
-            actionIconContentColor = MaterialTheme.colorScheme.onPrimary
-        ),
-        windowInsets = WindowInsets(0, 0, 0, 0),
-        navigationIcon = {
-            IconButton(onClick = { navController.navigateUp() }) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                )
-            }
-        },
+    CustomElements.ModernTopAppBar(
+        title = if (request == "invite")
+            stringResource(R.string.blocked_calls)
+        else
+            stringResource(R.string.blocked_messages),
+        badge = blocked.value.size,
+        onBack = { navController.navigateUp() },
         actions = {
             IconButton(onClick = { expanded = !expanded }) {
-                Icon(imageVector = Icons.Filled.Menu, contentDescription = "Menu")
+                Icon(imageVector = Icons.Filled.MoreVert, contentDescription = "More options", tint = Color.White)
             }
+            val blockedMenuItems = listOf(
+                MenuItem(delete, Icons.Outlined.Delete)
+            )
             CustomElements.DropdownMenu(
-                expanded,
-                { expanded = false },
-                listOf(delete),
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                menuItems = blockedMenuItems,
                 onItemClick = { selectedItem ->
                     expanded = false
                     when (selectedItem) {
@@ -211,13 +208,38 @@ private fun BlockedContent(
 
 @Composable
 private fun Account(account: Account) {
-    Text(
-        text = stringResource(R.string.account) + " " + account.text(),
-        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-        fontSize = 18.sp,
-        fontWeight = FontWeight.SemiBold,
-        textAlign = TextAlign.Center
-    )
+    val isDark = isSystemInDarkTheme() || BaresipService.darkTheme.value
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = if (isDark) Color(0xFF131C2E) else Color(0xFFF1F5F9),
+            border = BorderStroke(1.dp, if (isDark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)),
+            shadowElevation = 2.dp
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .background(Color(0xFFEF4444), CircleShape)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = account.text(),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isDark) Color.White else Color(0xFF0F172A)
+                )
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -243,56 +265,111 @@ private fun Blocked(
         onLastClicked = lastAction.value,
     )
 
-    val lazyListState = rememberLazyListState()
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 16.dp, end = 4.dp)
-            .verticalScrollbar(state = lazyListState)
-            .background(MaterialTheme.colorScheme.background),
-        state = lazyListState,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        items(items = blocked.value, key = { blocked -> blocked.timeStamp }) { blocked ->
-            val peerUri = blocked.peerUri
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-                    .clickable(
-                        enabled = !peerUri.contains("anonymous") && peerUri != unknown,
-                        onClick = {
-                            message.value = String.format(
-                                ctx.getString(R.string.blocked_contact_question), peerUri
-                            )
-                            lastButtonText.value = ctx.getString(R.string.add_contact)
-                            lastAction.value = { navController.navigate("contact/$peerUri/new") }
-                            showDialog.value = true
-                        }
-                    )
-            ) {
-                Text(
-                    text = "\u2022",
-                    modifier = Modifier.padding(start = 8.dp, end = 4.dp),
-                    fontSize = 18.sp
-                )
-                Text(
-                    text = Utils.friendlyUri(ctx, peerUri, acc),
-                    fontSize = 18.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.weight(1f))
+    if (blocked.value.isEmpty()) {
+        CustomElements.EmptyStateBanner(
+            icon = Icons.Filled.Block,
+            title = "No Blocked Entries",
+            message = "Blocked calls and messages for this account will appear here."
+        )
+    } else {
+        val lazyListState = rememberLazyListState()
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .verticalScrollbar(state = lazyListState),
+            state = lazyListState,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            items(items = blocked.value, key = { blocked -> blocked.timeStamp }) { blockedItem ->
+                val peerUri = blockedItem.peerUri
+                val isDark = isSystemInDarkTheme() || BaresipService.darkTheme.value
                 val calendar = GregorianCalendar()
-                calendar.timeInMillis = blocked.timeStamp
-                Text(
-                    text = Utils.relativeTime(ctx, calendar),
-                    fontSize = 12.sp,
-                    minLines = 2, maxLines = 2,
-                    lineHeight = 16.sp,
-                    textAlign = TextAlign.End,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(end = 16.dp)
-                )
+                calendar.timeInMillis = blockedItem.timeStamp
+                val timeStr = Utils.relativeTime(ctx, calendar)
+
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            enabled = !peerUri.contains("anonymous") && peerUri != unknown,
+                            onClick = {
+                                message.value = String.format(
+                                    ctx.getString(R.string.blocked_contact_question), peerUri
+                                )
+                                lastButtonText.value = ctx.getString(R.string.add_contact)
+                                lastAction.value = { navController.navigate("contact/$peerUri/new") }
+                                showDialog.value = true
+                            }
+                        ),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isDark) Color(0xFF131C2E) else Color.White
+                    ),
+                    border = BorderStroke(
+                        1.dp,
+                        if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFEF4444).copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Block,
+                                contentDescription = null,
+                                tint = Color(0xFFEF4444),
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = Utils.friendlyUri(ctx, peerUri, acc),
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = timeStr,
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        if (!peerUri.contains("anonymous") && peerUri != unknown) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.PersonAdd,
+                                    contentDescription = "Add Contact",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }

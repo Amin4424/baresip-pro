@@ -32,6 +32,18 @@ import androidx.activity.viewModels
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.Observer
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
@@ -62,6 +74,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
 
         super.onCreate(savedInstanceState)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            splashScreen.setOnExitAnimationListener { splashScreenView ->
+                splashScreenView.remove()
+            }
+        }
 
         val extraAction = intent.getStringExtra("action")
         Log.i(TAG, "Main onCreate ${intent.action}/${intent.data}/$extraAction")
@@ -250,7 +268,11 @@ class MainActivity : ComponentActivity() {
 
             AppTheme {
 
-                navController = rememberNavController()
+                var showSplash by rememberSaveable { mutableStateOf(!atStartup) }
+
+                Box(modifier = Modifier.fillMaxSize()) {
+
+                    navController = rememberNavController()
 
                 LaunchedEffect(key1 = viewModel) {
                     viewModel.navigationCommand.collect { command ->
@@ -281,7 +303,109 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                NavHost(navController, startDestination = "main") {
+                fun getBottomNavIndex(route: String?): Int {
+                    if (route == null) return -1
+                    return when {
+                        route == "main" -> 0
+                        route == "contacts" -> 1
+                        route.startsWith("calls") -> 2
+                        route.startsWith("chats") -> 3
+                        else -> -1
+                    }
+                }
+
+                NavHost(
+                    navController = navController,
+                    startDestination = "main",
+                    enterTransition = {
+                        val from = getBottomNavIndex(initialState.destination.route)
+                        val to = getBottomNavIndex(targetState.destination.route)
+                        if (from != -1 && to != -1) {
+                            if (to > from) {
+                                slideInHorizontally(
+                                    initialOffsetX = { fullWidth -> fullWidth },
+                                    animationSpec = tween(300)
+                                ) + fadeIn(animationSpec = tween(300))
+                            } else {
+                                slideInHorizontally(
+                                    initialOffsetX = { fullWidth -> -fullWidth },
+                                    animationSpec = tween(300)
+                                ) + fadeIn(animationSpec = tween(300))
+                            }
+                        } else {
+                            slideInHorizontally(
+                                initialOffsetX = { fullWidth -> fullWidth },
+                                animationSpec = tween(300)
+                            ) + fadeIn(animationSpec = tween(300))
+                        }
+                    },
+                    exitTransition = {
+                        val from = getBottomNavIndex(initialState.destination.route)
+                        val to = getBottomNavIndex(targetState.destination.route)
+                        if (from != -1 && to != -1) {
+                            if (to > from) {
+                                slideOutHorizontally(
+                                    targetOffsetX = { fullWidth -> -fullWidth },
+                                    animationSpec = tween(300)
+                                ) + fadeOut(animationSpec = tween(300))
+                            } else {
+                                slideOutHorizontally(
+                                    targetOffsetX = { fullWidth -> fullWidth },
+                                    animationSpec = tween(300)
+                                ) + fadeOut(animationSpec = tween(300))
+                            }
+                        } else {
+                            slideOutHorizontally(
+                                targetOffsetX = { fullWidth -> -fullWidth / 4 },
+                                animationSpec = tween(300)
+                            ) + fadeOut(animationSpec = tween(300))
+                        }
+                    },
+                    popEnterTransition = {
+                        val from = getBottomNavIndex(initialState.destination.route)
+                        val to = getBottomNavIndex(targetState.destination.route)
+                        if (from != -1 && to != -1) {
+                            if (to > from) {
+                                slideInHorizontally(
+                                    initialOffsetX = { fullWidth -> fullWidth },
+                                    animationSpec = tween(300)
+                                ) + fadeIn(animationSpec = tween(300))
+                            } else {
+                                slideInHorizontally(
+                                    initialOffsetX = { fullWidth -> -fullWidth },
+                                    animationSpec = tween(300)
+                                ) + fadeIn(animationSpec = tween(300))
+                            }
+                        } else {
+                            slideInHorizontally(
+                                initialOffsetX = { fullWidth -> -fullWidth / 4 },
+                                animationSpec = tween(300)
+                            ) + fadeIn(animationSpec = tween(300))
+                        }
+                    },
+                    popExitTransition = {
+                        val from = getBottomNavIndex(initialState.destination.route)
+                        val to = getBottomNavIndex(targetState.destination.route)
+                        if (from != -1 && to != -1) {
+                            if (to > from) {
+                                slideOutHorizontally(
+                                    targetOffsetX = { fullWidth -> -fullWidth },
+                                    animationSpec = tween(300)
+                                ) + fadeOut(animationSpec = tween(300))
+                            } else {
+                                slideOutHorizontally(
+                                    targetOffsetX = { fullWidth -> fullWidth },
+                                    animationSpec = tween(300)
+                                ) + fadeOut(animationSpec = tween(300))
+                            }
+                        } else {
+                            slideOutHorizontally(
+                                targetOffsetX = { fullWidth -> fullWidth },
+                                animationSpec = tween(300)
+                            ) + fadeOut(animationSpec = tween(300))
+                        }
+                    }
+                ) {
                     mainScreenRoute(
                         navController = navController,
                         viewModel = viewModel,
@@ -290,7 +414,6 @@ class MainActivity : ComponentActivity() {
                         onQuitApp = { quitApp() }
                     )
                     callScreenRoute(navController, viewModel)
-                    aboutScreenRoute(navController)
                     settingsScreenRoute(
                         navController = navController,
                         onRestartApp = { restartApp() }
@@ -308,8 +431,15 @@ class MainActivity : ComponentActivity() {
                     chatsScreenRoute(navController, viewModel)
                     chatScreenRoute(navController, viewModel)
                 }
+
+                if (showSplash) {
+                    SplashScreen(
+                        onFinish = { showSplash = false }
+                    )
+                }
             }
         }
+    }
 
     } // OnCreate
 
@@ -334,10 +464,13 @@ class MainActivity : ComponentActivity() {
             }
             else if (activeNotifications.any { it.id == MESSAGE_NOTIFICATION_ID }) {
                 val lastUnread = BaresipService.messages.lastOrNull { it.new }
-                if (lastUnread != null)
-                    viewModel.onNewMessageReceived(lastUnread.aor, lastUnread.peerUri)
-                else
+                if (lastUnread != null) {
+                    Log.d(TAG, "MainActivity: User opened app with active message notification - navigating to chat ${lastUnread.peerUri}")
+                    viewModel.navigateToChat(lastUnread.aor, lastUnread.peerUri)
+                } else {
+                    Log.d(TAG, "MainActivity: User opened app with message notification - navigating to chats")
                     viewModel.navigateToChats()
+                }
             }
         }
     }

@@ -5,10 +5,14 @@ import android.text.format.DateUtils.isToday
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,17 +20,21 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -34,17 +42,24 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.outlined.Clear
-import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.Videocam
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -59,6 +74,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
+import coil.compose.AsyncImage
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -176,10 +198,7 @@ private fun ChatScreen(
         modifier = Modifier.fillMaxSize().imePadding(),
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
-                Spacer(Modifier.statusBarsPadding())
-                TopAppBar(navController, viewModel, account, peerUri)
-            }
+            TopAppBar(navController, viewModel, account, peerUri)
         },
         bottomBar = {
             NewMessage(
@@ -211,28 +230,17 @@ private fun TopAppBar(
 ) {
     val ctx = LocalContext.current
     val aor = account.aor
-    TopAppBar(
-        title = {
-            Text(
-                text = format(
-                    stringResource(R.string.chat_with),
-                    Utils.friendlyUri(
-                        uri = peerUri,
-                        account = account,
-                        anonymous = stringResource(R.string.anonymous),
-                        unknown = stringResource(R.string.unknown)
-                    )
-                ),
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.primary,
-            navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
-            titleContentColor = MaterialTheme.colorScheme.onPrimary,
-            actionIconContentColor = MaterialTheme.colorScheme.onPrimary
-        ),
+    val isDark = isSystemInDarkTheme() || BaresipService.darkTheme.value
+
+    val peerName = Utils.friendlyUri(
+        uri = peerUri,
+        account = account,
+        anonymous = stringResource(R.string.anonymous),
+        unknown = stringResource(R.string.unknown)
+    )
+    val contact = Contact.findContact(peerUri)
+
+    CustomElements.ModernTopAppBar(
         navigationIcon = {
             IconButton(
                 onClick = {
@@ -244,16 +252,84 @@ private fun TopAppBar(
                     backAction(navController, account, peerUri)
                 }
             ) {
-                Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
             }
         },
-        windowInsets = WindowInsets(0, 0, 0, 0),
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Peer Avatar
+                Box(modifier = Modifier.size(40.dp)) {
+                    when (contact) {
+                        is Contact.BaresipContact -> {
+                            val avatarImage = contact.avatarImage
+                            if (avatarImage != null)
+                                Image(
+                                    bitmap = avatarImage.asImageBitmap(),
+                                    contentDescription = "Avatar",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize().clip(CircleShape)
+                                )
+                            else
+                                ModernChatAvatar(contact.name, contact.color)
+                        }
+                        is Contact.AndroidContact -> {
+                            val thumbNailUri = contact.thumbnailUri
+                            if (thumbNailUri != null)
+                                AsyncImage(
+                                    model = thumbNailUri,
+                                    contentDescription = "Avatar",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize().clip(CircleShape)
+                                )
+                            else
+                                ModernChatAvatar(contact.name, contact.color)
+                        }
+                        null -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.White.copy(alpha = 0.2f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.AccountCircle,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Column {
+                    Text(
+                        text = peerName,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = peerUri.substringAfter(":"),
+                        fontSize = 12.sp,
+                        color = Color.White.copy(alpha = 0.8f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        },
         actions = {
             if (!account.isMobile)
                 IconButton(
                     onClick = {
                         val ua = UserAgent.ofAor(account.aor)
                         if (ua != null) {
+                            Log.d(TAG, "ChatScreen: Starting video call with $peerUri")
                             val intent = Intent(ctx, MainActivity::class.java)
                             intent.putExtra("uap", ua.uap)
                             intent.putExtra("peer", peerUri)
@@ -269,14 +345,16 @@ private fun TopAppBar(
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Videocam,
-                        modifier = Modifier.size(36.dp),
+                        modifier = Modifier.size(26.dp),
                         contentDescription = "Video Call",
+                        tint = Color.White
                     )
                 }
             IconButton(
                 onClick = {
                     val ua = UserAgent.ofAor(account.aor)
                     if (ua != null) {
+                        Log.d(TAG, "ChatScreen: Starting voice call with $peerUri")
                         val callIntent = Intent(ctx, MainActivity::class.java)
                             .putExtra("uap", ua.uap)
                             .putExtra("peer", peerUri)
@@ -292,18 +370,17 @@ private fun TopAppBar(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Call,
+                    modifier = Modifier.size(24.dp),
                     contentDescription = "Call",
+                    tint = Color.White
                 )
             }
-            val contact = Contact.findContact(peerUri)
             if (contact != null && contact is Contact.BaresipContact && contact.email.isNotEmpty())
                 IconButton(
                     onClick = {
                         val ua = UserAgent.ofAor(account.aor)
                         if (ua != null) {
-                            val contact = Contact.findContact(peerUri)
-                            if (contact != null && contact is Contact.BaresipContact &&
-                                    contact.email.isNotEmpty()) {
+                            if (contact.email.isNotEmpty()) {
                                 val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
                                     data = "mailto:${contact.email}".toUri()
                                 }
@@ -315,10 +392,10 @@ private fun TopAppBar(
                             }
                         }
                         else
-                            Log.w(TAG, "Call button onClick listener did not find UA for $aor")
+                            Log.w(TAG, "Email button onClick listener did not find UA for $aor")
                     }
                 ) {
-                    Icon(imageVector = Icons.Outlined.Email, contentDescription = "Email")
+                    Icon(imageVector = Icons.Outlined.Email, modifier = Modifier.size(24.dp), contentDescription = "Email", tint = Color.White)
                 }
         }
     )
@@ -344,13 +421,38 @@ private fun ChatContent(
 
 @Composable
 private fun Account(account: Account) {
-    Text(
-        text = stringResource(R.string.account) + " " + account.text(),
-        modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp),
-        fontSize = 18.sp,
-        fontWeight = FontWeight.SemiBold,
-        textAlign = TextAlign.Center
-    )
+    val isDark = isSystemInDarkTheme() || BaresipService.darkTheme.value
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = if (isDark) Color(0xFF161C26) else Color(0xFFEFF3F8),
+            border = BorderStroke(1.dp, if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.AccountCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = account.text(),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isDark) Color.White else Color(0xFF111827)
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -360,6 +462,7 @@ private fun Messages(
     messages: List<Message>,
     onMessageDeleted: () -> Unit
 ) {
+    val isDark = isSystemInDarkTheme() || BaresipService.darkTheme.value
     val peerName = Utils.friendlyUri(
         uri = peerUri,
         account = account,
@@ -392,7 +495,6 @@ private fun Messages(
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(messages) {
-        // Scroll to the bottom when new messages are added
         if (messages.isNotEmpty())
             coroutineScope.launch { lazyListState.scrollToItem(0) }
     }
@@ -400,94 +502,147 @@ private fun Messages(
     LazyColumn(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 2.dp)
-            .verticalScrollbar(state = lazyListState)
-            .background(MaterialTheme.colorScheme.background),
+            .padding(horizontal = 12.dp)
+            .verticalScrollbar(state = lazyListState),
         reverseLayout = true,
         state = lazyListState,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(items = messages, key = { message -> message.timeStamp }) { message ->
-            val down = message.direction == MESSAGE_DOWN
-            val sender: String = if (down)
-                peerName
-            else if (BaresipService.uas.value.size == 1)
-                stringResource(R.string.you)
-            else
-                account.text()
-            var info: String
+            val isIncoming = message.direction == MESSAGE_DOWN
             val cal = GregorianCalendar()
             cal.timeInMillis = message.timeStamp
             val fmt: DateFormat = if (isToday(message.timeStamp))
                 DateFormat.getTimeInstance(DateFormat.SHORT)
             else
                 DateFormat.getDateInstance(DateFormat.SHORT)
-            info = fmt.format(cal.time)
+            var info = fmt.format(cal.time)
             if (info.length < 6) info = "${stringResource(R.string.today)} $info"
             if (message.direction == MESSAGE_UP_FAIL) {
                 info = if (message.responseCode != 0)
-                    "$info - ${stringResource(R.string.message_failed)}: " + "${message.responseCode} ${message.responseReason}"
+                    "$info - ${stringResource(R.string.message_failed)}: ${message.responseCode} ${message.responseReason}"
                 else
                     "$info - ${stringResource(R.string.sending_failed)}"
             }
+
+            val bubbleShape = if (isIncoming)
+                RoundedCornerShape(topStart = 4.dp, topEnd = 18.dp, bottomEnd = 18.dp, bottomStart = 18.dp)
+            else
+                RoundedCornerShape(topStart = 18.dp, topEnd = 4.dp, bottomEnd = 18.dp, bottomStart = 18.dp)
+
+            val bubbleColor = if (isIncoming) {
+                if (isDark) Color(0xFF131C2E) else Color(0xFFEFF3F8)
+            } else {
+                if (isDark) Color(0xFF0284C7) else MaterialTheme.colorScheme.primary
+            }
+
+            val textColor = if (isIncoming) {
+                if (isDark) Color.White else Color(0xFF0F172A)
+            } else {
+                Color.White
+            }
+
+            val metaColor = if (isIncoming) {
+                if (isDark) Color.White.copy(alpha = 0.6f) else Color(0xFF64748B)
+            } else {
+                Color.White.copy(alpha = 0.75f)
+            }
+
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(end = 12.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = if (isIncoming) Arrangement.Start else Arrangement.End
             ) {
-                CustomElements.Button(
-                    onClick = {
-                        dialogMessage.value = shortMessageQuestion
-                        secondButtonText.value = ""
-                        lastButtonText.value = deleteString
-                        lastAction.value = {
-                            message.delete()
-                            onMessageDeleted()
-                        }
-                        showDialog.value = true
-                    },
-                    onLongClick = {
-                    },
-                    shape = if (message.direction == MESSAGE_DOWN)
-                        RoundedCornerShape(50.dp, 20.dp, 20.dp, 10.dp)
-                    else
-                        RoundedCornerShape(20.dp, 10.dp, 50.dp, 20.dp),
-                    color =
-                        if (message.direction == MESSAGE_DOWN)
-                            MaterialTheme.colorScheme.secondaryContainer
-                        else
-                            MaterialTheme.colorScheme.primaryContainer,
+                Surface(
+                    shape = bubbleShape,
+                    color = bubbleColor,
+                    border = if (isIncoming) BorderStroke(1.dp, if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.05f)) else null,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .wrapContentHeight()
-                        .padding(
-                            start = if (message.direction == MESSAGE_DOWN) 0.dp else 24.dp,
-                            end = if (message.direction == MESSAGE_DOWN) 24.dp else 0.dp
-                        )
-                ) {
-                    Column {
-                        val textColor = if (message.direction == MESSAGE_DOWN)
-                            MaterialTheme.colorScheme.onSecondaryContainer
-                        else
-                            MaterialTheme.colorScheme.onPrimaryContainer
-                        Row {
-                            Text(text = sender, fontSize = 12.sp, color = textColor)
-                            Spacer(modifier = Modifier.weight(1f))
-                            Text(text = info, fontSize = 12.sp, color = textColor)
+                        .widthIn(min = 70.dp, max = 310.dp)
+                        .clickable {
+                            dialogMessage.value = shortMessageQuestion
+                            secondButtonText.value = ""
+                            lastButtonText.value = deleteString
+                            lastAction.value = {
+                                Log.d(TAG, "ChatScreen: Deleting message at ${message.timeStamp}")
+                                message.delete()
+                                onMessageDeleted()
+                            }
+                            showDialog.value = true
                         }
-                        Row {
-                            SelectionContainer {
-                                Text(
-                                    text = message.message,
-                                    color = textColor,
-                                    fontWeight = if (message.direction == MESSAGE_DOWN && message.new)
-                                        FontWeight.Bold else FontWeight.Normal
-                                )
+                ) {
+                    Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
+                        SelectionContainer {
+                            Text(
+                                text = message.message,
+                                color = textColor,
+                                fontSize = 15.sp,
+                                lineHeight = 20.sp,
+                                fontWeight = if (isIncoming && message.new) FontWeight.SemiBold else FontWeight.Normal
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier.align(Alignment.End),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = info,
+                                fontSize = 11.sp,
+                                color = metaColor
+                            )
+                            if (!isIncoming) {
+                                Spacer(modifier = Modifier.width(4.dp))
+                                when (message.direction) {
+                                    MESSAGE_UP_FAIL -> {
+                                        Icon(
+                                            imageVector = Icons.Filled.ErrorOutline,
+                                            contentDescription = "Failed",
+                                            tint = Color(0xFFFF5252),
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                    }
+                                    MESSAGE_UP_WAIT -> {
+                                        Icon(
+                                            imageVector = Icons.Filled.HourglassEmpty,
+                                            contentDescription = "Sending",
+                                            tint = metaColor,
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                    }
+                                    else -> {
+                                        Icon(
+                                            imageVector = Icons.Filled.DoneAll,
+                                            contentDescription = "Sent",
+                                            tint = metaColor,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ModernChatAvatar(name: String, color: Int) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clip(CircleShape)
+            .background(Color(color)),
+        contentAlignment = Alignment.Center
+    ) {
+        val initial = if (name.isNotEmpty()) name.first().uppercaseChar().toString() else ""
+        Text(
+            text = initial,
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 17.sp
+        )
     }
 }
 
@@ -502,6 +657,7 @@ private fun NewMessage(
     val ctx = LocalContext.current
     val aor = account.aor
     val ua = UserAgent.ofAor(aor)!!
+    val isDark = isSystemInDarkTheme() || BaresipService.darkTheme.value
 
     val newMessage = rememberSaveable(stateSaver = TextFieldValue.Saver) {
         mutableStateOf(TextFieldValue(viewModel.getAorPeerMessage(aor, peerUri)))
@@ -523,60 +679,92 @@ private fun NewMessage(
         lastButtonText = stringResource(R.string.ok),
     )
 
-    Row(modifier = Modifier
-        .fillMaxWidth()
-        .navigationBarsPadding()
-        .padding(start = 16.dp, end = 8.dp, top = 10.dp, bottom = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = if (isDark) Color(0xFF0F172A) else Color(0xFFFFFFFF),
+        border = BorderStroke(
+            0.5.dp,
+            if (isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.08f)
+        ),
+        shadowElevation = 6.dp
     ) {
-        val keyboardController = LocalSoftwareKeyboardController.current
-        OutlinedTextField(
-            value = newMessage.value,
-            placeholder = { Text(stringResource(R.string.new_message)) },
-            onValueChange = {
-                newMessage.value = it
-                viewModel.updateAorPeerMessage(aor, peerUri, it.text)
-            },
+        Row(
             modifier = Modifier
-                .weight(1f)
-                .padding(end = 8.dp)
-                .verticalScroll(rememberScrollState())
-                .focusRequester(focusRequester)
-                .onGloballyPositioned {
-                    if (!textFieldLoaded)
-                        textFieldLoaded = true
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(start = 12.dp, end = 10.dp, top = 8.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val keyboardController = LocalSoftwareKeyboardController.current
+            OutlinedTextField(
+                value = newMessage.value,
+                placeholder = {
+                    Text(
+                        stringResource(R.string.new_message) + "...",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
                 },
-            singleLine = false,
-            trailingIcon = {
-                if (newMessage.value.text.isNotEmpty()) {
-                    Icon(
-                        Icons.Outlined.Clear,
-                        contentDescription = "Clear",
-                        modifier = Modifier.clickable {
+                onValueChange = {
+                    newMessage.value = it
+                    viewModel.updateAorPeerMessage(aor, peerUri, it.text)
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
+                    .verticalScroll(rememberScrollState())
+                    .focusRequester(focusRequester)
+                    .onGloballyPositioned {
+                        if (!textFieldLoaded)
+                            textFieldLoaded = true
+                    },
+                shape = RoundedCornerShape(26.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = if (isDark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f),
+                    focusedContainerColor = if (isDark) Color(0xFF161C26) else Color(0xFFF1F4F8),
+                    unfocusedContainerColor = if (isDark) Color(0xFF141822) else Color(0xFFF6F8FA)
+                ),
+                singleLine = false,
+                maxLines = 4,
+                trailingIcon = {
+                    if (newMessage.value.text.isNotEmpty()) {
+                        IconButton(onClick = {
                             newMessage.value = TextFieldValue("")
                             viewModel.updateAorPeerMessage(aor, peerUri, "")
-                        },
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            },
-            label = { Text(stringResource(R.string.new_message)) },
-            textStyle = TextStyle(fontSize = 18.sp),
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Sentences,
-                keyboardType = KeyboardType.Text,
-                autoCorrectEnabled = true
+                        }) {
+                            Icon(
+                                Icons.Outlined.Clear,
+                                contentDescription = "Clear",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                },
+                textStyle = TextStyle(fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    keyboardType = KeyboardType.Text,
+                    autoCorrectEnabled = true
+                )
             )
-        )
-        LaunchedEffect(Unit) {
-            if (newMessage.value.text.isNotEmpty())
-                focusRequester.requestFocus()
-        }
-        SmallFloatingActionButton(
-            modifier = Modifier.offset(y = 2.dp),
+            LaunchedEffect(Unit) {
+                if (newMessage.value.text.isNotEmpty())
+                    focusRequester.requestFocus()
+            }
+            IconButton(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (newMessage.value.text.isNotEmpty())
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+                    ),
             onClick = {
                 val msgText = newMessage.value.text
                 if (msgText.isNotEmpty()) {
+                    Log.d(TAG, "ChatScreen: Sending message to $peerUri (${msgText.length} chars)")
                     keyboardController?.hide()
                     val time = System.currentTimeMillis()
                     val msg = Message(
@@ -646,17 +834,17 @@ private fun NewMessage(
                         }
                     }
                 }
-            },
-            containerColor = MaterialTheme.colorScheme.secondary,
-            contentColor = MaterialTheme.colorScheme.onSecondary
+            }
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.Send,
-                modifier = Modifier.size(28.dp),
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.onPrimary,
                 contentDescription = stringResource(R.string.add)
             )
         }
     }
+}
 }
 
 private fun backAction(navController: NavController, account: Account, peerUri: String) {

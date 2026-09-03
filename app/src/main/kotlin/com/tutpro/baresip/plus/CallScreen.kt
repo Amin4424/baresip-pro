@@ -132,9 +132,15 @@ private fun CallScreen(navController: NavController, viewModel: ViewModel) {
     val isConnected = status == "connected" || status == "transferring"
     val isIncoming = status == "incoming"
     val isOutgoing = status == "outgoing" || status == "calling" || status == "ringing"
-    val isHold = call?.onhold == true || (call?.callOnHold?.value == true && call?.showOnHoldNotice?.value != true)
-    val isHeldByPeer = (call?.showOnHoldNotice?.value == true || call?.held == true) && call?.onhold != true
-    val isOnHold = isHold || isHeldByPeer || call?.callOnHold?.value == true
+    var isCallOnHold by remember(call?.callp) {
+        mutableStateOf(call?.onhold == true || (call?.callOnHold?.value == true && call?.showOnHoldNotice?.value != true))
+    }
+    LaunchedEffect(call?.callp, call?.callOnHold?.value, call?.showOnHoldNotice?.value) {
+        isCallOnHold = call?.onhold == true || (call?.callOnHold?.value == true && call?.showOnHoldNotice?.value != true)
+    }
+    val isHold = isCallOnHold
+    val isHeldByPeer = (call?.showOnHoldNotice?.value == true || call?.held == true) && !isCallOnHold
+    val isOnHold = isHold || isHeldByPeer
     val isCalling = status == "calling"
     val isRinging = status == "ringing"
     val isIncomingVideo = isIncoming && (call?.hasVideo() == true || call?.videoCall == true)
@@ -708,11 +714,19 @@ private fun CallScreen(navController: NavController, viewModel: ViewModel) {
                         },
                         onToggleHold = {
                             call?.let {
-                                if (it.onhold || (it.callOnHold.value && !it.held)) {
+                                if (isCallOnHold || it.onhold || it.callOnHold.value) {
                                     Log.d(CALL_SCREEN_TAG, "User requested resume for ${it.callp}")
+                                    it.onhold = false
+                                    it.callOnHold.value = false
+                                    it.showOnHoldNotice.value = false
+                                    isCallOnHold = false
                                     it.resume()
-                                } else if (!it.held && !it.showOnHoldNotice.value) {
+                                } else {
                                     Log.d(CALL_SCREEN_TAG, "User requested hold for ${it.callp}")
+                                    it.onhold = true
+                                    it.callOnHold.value = true
+                                    it.showOnHoldNotice.value = false
+                                    isCallOnHold = true
                                     it.hold()
                                 }
                             }

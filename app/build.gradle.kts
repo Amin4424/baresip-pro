@@ -10,11 +10,11 @@ configure<ApplicationExtension> {
     compileSdk = 37
     ndkVersion = "29.0.14206865"
     defaultConfig {
-        applicationId = "com.tutpro.baresip.plus"
+        applicationId = "com.tutpro.baresip.promax"
         minSdk = 28
         targetSdk = 36
-        versionCode = 302
-        versionName = "78.1.1"
+        versionCode = 1
+        versionName = "1.0.0"
         @Suppress("UnstableApiUsage")
         externalNativeBuild {
             cmake {
@@ -28,11 +28,19 @@ configure<ApplicationExtension> {
         }
         vectorDrawables.useSupportLibrary = true
     }
+    signingConfigs {
+        create("release") {
+            storeFile = file("baresip-promax-release.keystore")
+            storePassword = "baresip123"
+            keyAlias = "promax"
+            keyPassword = "baresip123"
+        }
+    }
     buildTypes {
         debug {
-            ndk { abiFilters.add("x86_64") }
         }
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

@@ -41,7 +41,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -107,34 +112,15 @@ private fun AudioScreen(
         modifier = Modifier.fillMaxSize().imePadding(),
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
-                Spacer(Modifier.statusBarsPadding())
-                TopAppBar(
-                    title = {
-                        Text(text = stringResource(R.string.audio_settings), fontWeight = FontWeight.Bold)
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
-                        titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                        actionIconContentColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = null,
-                            )
-                        }
-                    },
-                    windowInsets = WindowInsets(0, 0, 0, 0),
-                    actions = {
-                        IconButton(onClick = checkOnClick) {
-                            Icon(imageVector = Icons.Filled.Check, contentDescription = "Check")
-                        }
-                    },
-                )
-            }
+            CustomElements.ModernTopAppBar(
+                title = stringResource(R.string.audio_settings),
+                onBack = onBack,
+                actions = {
+                    IconButton(onClick = checkOnClick) {
+                        Icon(imageVector = Icons.Filled.Check, contentDescription = "Check", tint = Color.White)
+                    }
+                }
+            )
         }
     ) {
         contentPadding -> AudioContent(viewModel, contentPadding)
@@ -156,27 +142,65 @@ private fun AudioContent(viewModel: AudioViewModel, contentPadding: PaddingValue
             lastButtonText = stringResource(R.string.ok),
         )
 
+    @Composable
+    fun SectionCard(
+        title: String,
+        content: @Composable ColumnScope.() -> Unit
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 4.dp),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                content()
+            }
+        }
+    }
+
     val scrollState = rememberScrollState()
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(contentPadding)
-            .padding(top = 16.dp, bottom = 8.dp, start = 16.dp, end = 4.dp)
+            .padding(vertical = 8.dp)
             .verticalScrollbar(scrollState)
             .verticalScroll(state = scrollState),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Ringtone(viewModel)
-        ToneCountry(viewModel)
-        SpeakerPhone(viewModel)
-        CallVolume(viewModel)
-        AudioDelay(viewModel)
-        MicGain(viewModel)
-        AudioModules(viewModel)
-        IlbcMode(viewModel)
-        OpusBitRate(viewModel)
-        OpusPacketLoss(viewModel)
+        SectionCard(title = "Output & Tones") {
+            Ringtone(viewModel)
+            ToneCountry(viewModel)
+            SpeakerPhone(viewModel)
+            CallVolume(viewModel)
+        }
+
+        SectionCard(title = "Hardware & Codec Tuning") {
+            AudioDelay(viewModel)
+            MicGain(viewModel)
+            AudioModules(viewModel)
+            IlbcMode(viewModel)
+            OpusBitRate(viewModel)
+            OpusPacketLoss(viewModel)
+        }
     }
 }
 

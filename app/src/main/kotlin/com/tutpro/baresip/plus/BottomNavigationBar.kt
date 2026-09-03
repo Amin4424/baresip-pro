@@ -4,8 +4,10 @@ import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -31,7 +33,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -44,6 +49,8 @@ fun BottomNavigationBar(ctx: Context, viewModel: ViewModel, navController: NavCo
     val isDialpadVisible by viewModel.isDialpadVisible.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+
+    val isDark = isSystemInDarkTheme() || BaresipService.darkTheme.value
 
     val showVmIcon = remember(aor, accountUpdate) {
         if (aor.isNotEmpty()) Account.ofAor(aor)?.vmUri?.isNotEmpty() ?: false else false
@@ -61,14 +68,44 @@ fun BottomNavigationBar(ctx: Context, viewModel: ViewModel, navController: NavCo
         if (aor.isNotEmpty()) Account.ofAor(aor)?.missedCalls ?: false else false
     }
 
+    // Glassmorphism translucent styling compatible with Android 8.0+
+    val glassBg = if (isDark) {
+        Color(0xFF0D1424).copy(alpha = 0.78f)
+    } else {
+        Color(0xFFFFFFFF).copy(alpha = 0.82f)
+    }
+
+    val glassBorder = Brush.verticalGradient(
+        colors = if (isDark) listOf(
+            Color.White.copy(alpha = 0.28f),
+            Color.White.copy(alpha = 0.06f)
+        ) else listOf(
+            Color.White.copy(alpha = 0.95f),
+            Color.White.copy(alpha = 0.45f)
+        )
+    )
+
+    val shadowSpotColor = if (isDark) {
+        Color(0xFF00B0FF).copy(alpha = 0.20f)
+    } else {
+        Color(0xFF0F172A).copy(alpha = 0.12f)
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(start = if (showVmIcon) 16.dp else 32.dp, end = if (showVmIcon) 16.dp else 32.dp, bottom = 12.dp)
-            .shadow(12.dp, RoundedCornerShape(32.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(32.dp))
-            .height(60.dp),
+            .padding(start = if (showVmIcon) 16.dp else 28.dp, end = if (showVmIcon) 16.dp else 28.dp, bottom = 12.dp)
+            .shadow(
+                elevation = 16.dp,
+                shape = RoundedCornerShape(32.dp),
+                spotColor = shadowSpotColor,
+                ambientColor = Color.Black.copy(alpha = 0.12f)
+            )
+            .clip(RoundedCornerShape(32.dp))
+            .background(glassBg)
+            .border(width = 1.dp, brush = glassBorder, shape = RoundedCornerShape(32.dp))
+            .height(62.dp),
         contentAlignment = Alignment.Center
     ) {
         Row(
@@ -106,7 +143,11 @@ fun BottomNavigationBar(ctx: Context, viewModel: ViewModel, navController: NavCo
                 isActive = (currentRoute == "main" || currentRoute == null) && isDialpadVisible,
                 onClick = {
                     if (currentRoute != "main") {
-                        navController.navigate("main")
+                        navController.navigate("main") {
+                            popUpTo("main") { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
                     if (!isDialpadVisible) {
                         viewModel.toggleDialpadVisibility()
@@ -121,7 +162,11 @@ fun BottomNavigationBar(ctx: Context, viewModel: ViewModel, navController: NavCo
                 isActive = currentRoute == "contacts",
                 onClick = {
                     if (currentRoute != "contacts") {
-                        navController.navigate("contacts")
+                        navController.navigate("contacts") {
+                            popUpTo("main") { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
                 }
             )
@@ -133,8 +178,13 @@ fun BottomNavigationBar(ctx: Context, viewModel: ViewModel, navController: NavCo
                 isActive = currentRoute?.startsWith("calls") == true,
                 hasBadge = hasMissedCalls,
                 onClick = {
-                    if (currentRoute?.startsWith("calls") != true) {
-                        navController.navigate("calls/$aor")
+                    val targetAor = aor.ifEmpty { BaresipService.uas.value.firstOrNull()?.account?.aor ?: "" }
+                    if (targetAor.isNotEmpty() && currentRoute?.startsWith("calls") != true) {
+                        navController.navigate("calls/$targetAor") {
+                            popUpTo("main") { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
                 }
             )
@@ -150,8 +200,13 @@ fun BottomNavigationBar(ctx: Context, viewModel: ViewModel, navController: NavCo
                         Toast.makeText(ctx, R.string.enable_default_messaging, Toast.LENGTH_LONG).show()
                         return@BottomNavItem
                     }
-                    if (currentRoute?.startsWith("chats") != true) {
-                        navController.navigate("chats/$aor")
+                    val targetAor = aor.ifEmpty { BaresipService.uas.value.firstOrNull()?.account?.aor ?: "" }
+                    if (targetAor.isNotEmpty() && currentRoute?.startsWith("chats") != true) {
+                        navController.navigate("chats/$targetAor") {
+                            popUpTo("main") { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
                 }
             )
@@ -167,13 +222,28 @@ fun BottomNavItem(
     hasBadge: Boolean = false,
     onClick: () -> Unit
 ) {
+    val isDark = isSystemInDarkTheme() || BaresipService.darkTheme.value
+
     Box(contentAlignment = Alignment.TopEnd) {
         if (isActive) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .shadow(4.dp, CircleShape)
-                    .background(MaterialTheme.colorScheme.surface, shape = CircleShape)
+                    .size(46.dp)
+                    .shadow(8.dp, CircleShape, spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f))
+                    .background(
+                        if (isDark) Color(0xFF1E293B).copy(alpha = 0.95f) else Color.White.copy(alpha = 0.95f),
+                        shape = CircleShape
+                    )
+                    .border(
+                        1.dp,
+                        Brush.verticalGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                            )
+                        ),
+                        CircleShape
+                    )
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -185,20 +255,20 @@ fun BottomNavItem(
                     imageVector = icon,
                     contentDescription = contentDescription,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(26.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
         } else {
             IconButton(
                 onClick = onClick,
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier.size(46.dp),
                 interactionSource = remember { MutableInteractionSource() }
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = contentDescription,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    modifier = Modifier.size(26.dp)
+                    tint = if (isDark) Color(0xFF94A3B8) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
@@ -206,10 +276,13 @@ fun BottomNavItem(
         if (hasBadge) {
             Box(
                 modifier = Modifier
-                    .padding(top = 4.dp, end = 4.dp)
+                    .padding(top = 2.dp, end = 2.dp)
                     .size(10.dp)
-                    .background(MaterialTheme.colorScheme.error, CircleShape)
+                    .shadow(2.dp, CircleShape)
+                    .background(Color(0xFFFF3B30), CircleShape)
+                    .border(1.5.dp, if (isDark) Color(0xFF0F172A) else Color.White, CircleShape)
             )
         }
     }
 }
+

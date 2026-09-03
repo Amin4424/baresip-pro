@@ -27,6 +27,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -88,7 +95,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Person
@@ -280,7 +287,6 @@ private fun MainScreen(
     val showKeyboard by viewModel.showKeyboard.collectAsState()
     val hideKeyboard by viewModel.hideKeyboard.collectAsState()
 
-    val about = stringResource(R.string.about)
     val settings = stringResource(R.string.configuration)
     val accounts = stringResource(R.string.accounts)
     val backup = stringResource(R.string.backup)
@@ -561,6 +567,8 @@ private fun MainScreen(
         }
     }
 
+    val isDark = isSystemInDarkTheme() || BaresipService.darkTheme.value
+
     if (showVideoLayout.value) {
         VideoLayout(ctx = ctx, viewModel = viewModel, onCloseVideo = { showVideoLayout.value = false })
     } else {
@@ -568,45 +576,58 @@ private fun MainScreen(
             drawerState = drawerState,
             drawerContent = {
                 ModalDrawerSheet(
-                    modifier = Modifier.width(LocalConfiguration.current.screenWidthDp.dp * 0.75f),
-                    drawerContainerColor = MaterialTheme.colorScheme.surface,
-                    drawerTonalElevation = 4.dp
+                    modifier = Modifier.width(LocalConfiguration.current.screenWidthDp.dp * 0.78f),
+                    drawerContainerColor = if (isDark) Color(0xFF0F172A) else Color.White,
+                    drawerTonalElevation = 6.dp
                 ) {
-                    Spacer(Modifier.height(12.dp))
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(64.dp)
-                                .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.CallIcon,
-                                contentDescription = null,
-                                modifier = Modifier.size(36.dp),
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(
+                                        MaterialTheme.colorScheme.primary,
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.82f)
+                                    )
+                                )
                             )
+                            .padding(horizontal = 20.dp, vertical = 24.dp)
+                    ) {
+                        Column {
+                            Box(
+                                modifier = Modifier
+                                    .size(60.dp)
+                                    .background(Color.White.copy(alpha = 0.22f), CircleShape)
+                                    .border(1.5.dp, Color.White.copy(alpha = 0.4f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.CallIcon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(32.dp),
+                                    tint = Color.White
+                                )
+                            }
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                text = "Pico",
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            if (ua != null) {
+                                Text(
+                                    text = ua.account.text(),
+                                    fontSize = 13.sp,
+                                    color = Color.White.copy(alpha = 0.85f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = "Pico",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
                     }
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Spacer(Modifier.height(8.dp))
                     
-                    NavigationDrawerItem(
-                        label = { Text(text = about) },
-                        selected = false,
-                        onClick = { scope.launch { drawerState.close() }; navController.navigate("about") },
-                        icon = { Icon(Icons.Outlined.Info, contentDescription = null) },
-                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                    )
                     NavigationDrawerItem(
                         label = { Text(text = settings) },
                         selected = false,
@@ -678,14 +699,17 @@ private fun MainScreen(
                     modifier = Modifier.fillMaxSize().imePadding(),
                     containerColor = MaterialTheme.colorScheme.background,
                     topBar = {
-                        Column(modifier = Modifier.background(MaterialTheme.colorScheme.primary)) {
-                            Spacer(Modifier.statusBarsPadding())
-                            TopAppBar(
-                                viewModel = viewModel,
-                                navController = navController,
-                                onMenuClick = { scope.launch { drawerState.open() } }
-                            )
-                        }
+                        TopAppBar(
+                            viewModel = viewModel,
+                            navController = navController,
+                            onSettingsClick = { navController.navigate("settings") },
+                            onAccountsClick = { navController.navigate("accounts") },
+                            onBackupClick = { launchBackupRequest() },
+                            onRestoreClick = { launchRestoreRequest() },
+                            onLogcatClick = { launchLogcatRequest() },
+                            onRestartClick = onRestartClick,
+                            onQuitClick = onQuitClick
+                        )
                     },
                     content = { contentPadding ->
                         MainContent(navController, viewModel, contentPadding)
@@ -702,47 +726,153 @@ private fun MainScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TopAppBar(
     viewModel: ViewModel,
     navController: NavController,
-    onMenuClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    onAccountsClick: () -> Unit,
+    onBackupClick: () -> Unit,
+    onRestoreClick: () -> Unit,
+    onLogcatClick: () -> Unit,
+    onRestartClick: () -> Unit,
+    onQuitClick: () -> Unit
 ) {
-    CenterAlignedTopAppBar(
-        title = {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(end = 48.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "Pico",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-            }
-        },
-        navigationIcon = {
+    var menuExpanded by remember { mutableStateOf(false) }
+    val settings = stringResource(R.string.configuration)
+    val accounts = stringResource(R.string.accounts)
+    val backup = stringResource(R.string.backup)
+    val restore = stringResource(R.string.restore)
+    val logcat = stringResource(R.string.logcat)
+    val restart = stringResource(R.string.restart)
+    val quit = stringResource(R.string.quit)
+
+    val menuItems = remember(settings, accounts, backup, restore, logcat, restart, quit) {
+        val list = mutableListOf<MenuItem>(
+            MenuItem(settings, Icons.Outlined.Settings),
+            MenuItem(accounts, Icons.Outlined.AccountCircle),
+            MenuItem(backup, Icons.Outlined.Backup),
+            MenuItem(restore, Icons.Outlined.Restore)
+        )
+        if (VERSION.SDK_INT >= 29) {
+            list.add(MenuItem(logcat, Icons.Outlined.Description))
+        }
+        list.add(MenuItem(restart, Icons.Outlined.RestartAlt))
+        list.add(MenuItem(quit, Icons.Outlined.ExitToApp))
+        list
+    }
+
+    CustomElements.ModernTopAppBar(
+        actions = {
             IconButton(
-                onClick = onMenuClick,
-                modifier = Modifier.size(48.dp)
+                onClick = { menuExpanded = !menuExpanded }
             ) {
                 Icon(
-                    imageVector = Icons.Filled.Menu,
-                    contentDescription = "Menu",
-                    tint = Color.White,
-                    modifier = Modifier.size(32.dp)
+                    imageVector = Icons.Filled.MoreVert,
+                    contentDescription = "More options",
+                    tint = Color.White
                 )
             }
+            CustomElements.DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false },
+                menuItems = menuItems,
+                onItemClick = { selected ->
+                    menuExpanded = false
+                    when (selected) {
+                        settings -> onSettingsClick()
+                        accounts -> onAccountsClick()
+                        backup -> onBackupClick()
+                        restore -> onRestoreClick()
+                        logcat -> onLogcatClick()
+                        restart -> onRestartClick()
+                        quit -> onQuitClick()
+                    }
+                }
+            )
         },
-        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-            containerColor = MaterialTheme.colorScheme.primary,
-            titleContentColor = MaterialTheme.colorScheme.onPrimary,
-            navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-        ),
-        windowInsets = WindowInsets(0, 0, 0, 0)
+        title = {
+            AnimatedTypewriterTitle()
+        }
     )
+}
+
+@Composable
+fun AnimatedTypewriterTitle(modifier: Modifier = Modifier) {
+    var displayedChars by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            // 1. Type in characters one by one
+            for (i in 1..14) {
+                displayedChars = i
+                delay(90)
+            }
+            // 2. Pause when full
+            delay(2400)
+            // 3. Delete characters one by one
+            for (i in 14 downTo 0) {
+                displayedChars = i
+                delay(40)
+            }
+            // 4. Pause before restarting
+            delay(600)
+        }
+    }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "cursor")
+    val cursorAlpha by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(450, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "cursorAlpha"
+    )
+
+    val baresipText = if (displayedChars <= 8) "Baresip ".take(displayedChars) else "Baresip "
+    val proText = if (displayedChars > 8) "Pro".take(displayedChars - 8) else ""
+    val maxText = if (displayedChars > 11) "max".take(displayedChars - 11) else ""
+
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (baresipText.isNotEmpty()) {
+            Text(
+                text = baresipText,
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp,
+                color = Color.White
+            )
+        }
+        if (proText.isNotEmpty()) {
+            Text(
+                text = proText,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 20.sp,
+                color = Color(0xFF38BDF8)
+            )
+        }
+        if (maxText.isNotEmpty()) {
+            Spacer(modifier = Modifier.width(3.dp))
+            Text(
+                text = maxText,
+                fontWeight = FontWeight.Black,
+                fontSize = 11.sp,
+                color = Color(0xFFFF9100),
+                modifier = Modifier.offset(y = (-6).dp)
+            )
+        }
+        Box(
+            modifier = Modifier
+                .padding(start = 2.dp)
+                .width(2.dp)
+                .height(18.dp)
+                .background(Color(0xFFFF9100).copy(alpha = cursorAlpha), RoundedCornerShape(1.dp))
+        )
+    }
 }
 
 private val alertTitle = mutableStateOf("")
@@ -2543,9 +2673,9 @@ fun handleServiceEvent(ctx: Context, viewModel: ViewModel, event: String, params
             }
         }
         "message", "message show", "message reply" -> {
-            Handler(Looper.getMainLooper()).postDelayed({
-                viewModel.onNewMessageReceived(aor, params[1] as String)
-            }, 200)
+            Log.d(TAG, "handleServiceEvent: Message event '${ev[0]}' for $aor from ${params[1]}. Updating state without auto-jumping to chat.")
+            BaresipService.messageUpdate.postValue(System.currentTimeMillis())
+            viewModel.triggerAccountUpdate()
         }
         "mwi notify" -> {
             val lines = ev[1].split("\n")
@@ -2642,9 +2772,13 @@ fun handleIntent(ctx: Context, viewModel: ViewModel, intent: Intent, action: Str
                 return
             }
             spinToAor(viewModel, ua.account.aor)
-            BaresipService.postServiceEvent(
-                ServiceEvent(ev[0], arrayListOf(uap, intent.getStringExtra("peer")!!), System.nanoTime())
-            )
+            val peer = intent.getStringExtra("peer") ?: ""
+            Log.d(TAG, "handleIntent: message intent action=${ev[0]} for aor=${ua.account.aor} peer=$peer - navigating to chat")
+            if (peer.isNotEmpty()) {
+                viewModel.navigateToChat(ua.account.aor, peer)
+            } else {
+                viewModel.navigateToChats()
+            }
         }
     }
 }

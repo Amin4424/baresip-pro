@@ -73,7 +73,7 @@
         android:supportsRtl="true"
         android:largeHeap="true"
         android:enableOnBackInvokedCallback="true"
-        android:theme="@style/Theme.Material3.DayNight.NoActionBar"
+        android:theme="@style/Theme.BaresipProMax"
         tools:remove="android:appComponentFactory"
         tools:targetApi="33">
 
@@ -225,9 +225,9 @@
             android:exported="true"
             tools:ignore="ExportedReceiver" >
             <intent-filter>
-                <action android:name="com.tutpro.baresip.plus.REGISTER" />
-                <action android:name="com.tutpro.baresip.plus.UNREGISTER" />
-                <action android:name="com.tutpro.baresip.plus.QUIT" />
+                <action android:name="com.tutpro.baresip.promax.REGISTER" />
+                <action android:name="com.tutpro.baresip.promax.UNREGISTER" />
+                <action android:name="com.tutpro.baresip.promax.QUIT" />
             </intent-filter>
         </receiver>
 

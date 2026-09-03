@@ -116,10 +116,14 @@ class ViewModel: ViewModel() {
         return callRow
     }
 
-    fun onNewMessageReceived(aor: String, peerUri: String) {
+    fun navigateToChat(aor: String, peerUri: String) {
         viewModelScope.launch {
             _navigationCommand.emit(NavigationCommand.NavigateToChat(aor, peerUri))
         }
+    }
+
+    fun onNewMessageReceived(aor: String, peerUri: String) {
+        navigateToChat(aor, peerUri)
     }
 
     fun updateCalls(calls: List<Call>) {

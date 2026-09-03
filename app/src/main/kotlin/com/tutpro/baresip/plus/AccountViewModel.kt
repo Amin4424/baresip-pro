@@ -11,7 +11,7 @@ class AccountViewModel: ViewModel() {
     val authPass = MutableStateFlow("")
     val outbound1 = MutableStateFlow("")
     val outbound2 = MutableStateFlow("")
-    val register = MutableStateFlow(false)
+    val register = MutableStateFlow(true)
     val regInt = MutableStateFlow("")
     val checkOrigin = MutableStateFlow(true)
     val mediaEnc = MutableStateFlow("")

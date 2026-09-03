@@ -11,6 +11,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -72,6 +73,13 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -153,39 +161,55 @@ object CustomElements {
         onItemClick: (String) -> Unit
     ) {
         val hasAnyIcon = menuItems.any { it.icon != null }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = onDismissRequest,
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        val isDark = MaterialTheme.colorScheme.background.red < 0.2f
+        
+        MaterialTheme(
+            shapes = MaterialTheme.shapes.copy(extraSmall = RoundedCornerShape(18.dp))
         ) {
-            val itemsIterator = menuItems.iterator()
-            while (itemsIterator.hasNext()) {
-                val menuItem = itemsIterator.next()
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = menuItem.text,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 16.sp
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = onDismissRequest,
+                containerColor = if (isDark) Color(0xFF131C2E) else Color(0xFFFFFFFF),
+                shadowElevation = 12.dp,
+                border = BorderStroke(
+                    1.dp,
+                    if (isDark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)
+                ),
+                modifier = Modifier.clip(RoundedCornerShape(18.dp))
+            ) {
+                val itemsIterator = menuItems.iterator()
+                while (itemsIterator.hasNext()) {
+                    val menuItem = itemsIterator.next()
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = menuItem.text,
+                                color = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F172A),
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        },
+                        leadingIcon = if (hasAnyIcon) {
+                            {
+                                if (menuItem.icon != null)
+                                    Icon(
+                                        imageVector = menuItem.icon,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                else
+                                    Spacer(Modifier.size(20.dp))
+                            }
+                        } else null,
+                        onClick = { onItemClick(menuItem.text) }
+                    )
+                    if (itemsIterator.hasNext())
+                        HorizontalDivider(
+                            color = if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f),
+                            thickness = 0.5.dp
                         )
-                    },
-                    leadingIcon = if (hasAnyIcon) {
-                        {
-                            if (menuItem.icon != null)
-                                Icon(
-                                    imageVector = menuItem.icon,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            else
-                                Spacer(Modifier.size(24.dp))
-                        }
-                    }
-                    else null,
-                    onClick = { onItemClick(menuItem.text) }
-                )
-                if (itemsIterator.hasNext())
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                }
             }
         }
     }
@@ -732,6 +756,8 @@ object CustomElements {
         icon: ImageVector,
         title: String,
         message: String,
+        actionLabel: String? = null,
+        onActionClick: (() -> Unit)? = null,
         modifier: Modifier = Modifier
     ) {
         Card(
@@ -781,7 +807,154 @@ object CustomElements {
                     textAlign = TextAlign.Center,
                     lineHeight = 20.sp
                 )
+                if (actionLabel != null && onActionClick != null) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    androidx.compose.material3.Button(
+                        onClick = onActionClick,
+                        shape = RoundedCornerShape(16.dp),
+                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Text(text = actionLabel, fontWeight = FontWeight.SemiBold)
+                    }
+                }
             }
+        }
+    }
+
+    @Composable
+    fun topBarGradient(): Brush {
+        val isDark = isSystemInDarkTheme() || BaresipService.darkTheme.value
+        return if (isDark) {
+            Brush.verticalGradient(
+                listOf(Color(0xFF0F172A), Color(0xFF1E293B))
+            )
+        } else {
+            Brush.verticalGradient(
+                listOf(Color(0xFF0284C7), Color(0xFF0369A1))
+            )
+        }
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    fun ModernTopAppBar(
+        title: String,
+        subtitle: String? = null,
+        badge: Int? = null,
+        onBack: (() -> Unit)? = null,
+        navigationIcon: (@Composable () -> Unit)? = null,
+        actions: @Composable (RowScope.() -> Unit) = {}
+    ) {
+        val topBarGradient = topBarGradient()
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(topBarGradient)
+                .statusBarsPadding()
+        ) {
+            TopAppBar(
+                title = {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = title,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp,
+                                color = Color.White
+                            )
+                            if (badge != null && badge > 0) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = Color.White.copy(alpha = 0.25f)
+                                ) {
+                                    Text(
+                                        text = badge.toString(),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+                        if (!subtitle.isNullOrEmpty()) {
+                            Text(
+                                text = subtitle,
+                                fontSize = 12.sp,
+                                color = Color.White.copy(alpha = 0.85f)
+                            )
+                        }
+                    }
+                },
+                navigationIcon = {
+                    if (navigationIcon != null) {
+                        navigationIcon()
+                    } else if (onBack != null) {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = Color.White
+                            )
+                        }
+                    }
+                },
+                actions = actions,
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White,
+                    actionIconContentColor = Color.White
+                ),
+                windowInsets = WindowInsets(0, 0, 0, 0)
+            )
+        }
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    fun ModernTopAppBar(
+        navigationIcon: (@Composable () -> Unit)? = null,
+        onBack: (() -> Unit)? = null,
+        actions: @Composable (RowScope.() -> Unit) = {},
+        title: @Composable () -> Unit
+    ) {
+        val topBarGradient = topBarGradient()
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(topBarGradient)
+                .statusBarsPadding()
+        ) {
+            TopAppBar(
+                title = title,
+                navigationIcon = {
+                    if (navigationIcon != null) {
+                        navigationIcon()
+                    } else if (onBack != null) {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = Color.White
+                            )
+                        }
+                    }
+                },
+                actions = actions,
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White,
+                    actionIconContentColor = Color.White
+                ),
+                windowInsets = WindowInsets(0, 0, 0, 0)
+            )
         }
     }
 }

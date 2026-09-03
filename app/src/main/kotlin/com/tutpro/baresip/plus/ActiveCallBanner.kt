@@ -97,14 +97,14 @@ fun ActiveCallBanner(
         else -> MaterialTheme.colorScheme.primary
     }
 
-    val containerBg = if (isDark) Color(0xFF1E293B) else Color(0xFFFFFFFF)
+    val containerBg = if (isDark) Color(0xFF131B2E) else Color(0xFFFFFFFF)
     val borderStroke = BorderStroke(1.dp, if (isDark) statusColor.copy(alpha = 0.35f) else statusColor.copy(alpha = 0.5f))
 
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .shadow(4.dp, RoundedCornerShape(18.dp))
+            .padding(horizontal = 4.dp, vertical = 4.dp)
+            .shadow(4.dp, RoundedCornerShape(22.dp))
             .clickable {
                 viewModel.setFocusedCall(call)
                 if (call.ua.account.aor != viewModel.selectedAor.value) {
@@ -114,20 +114,20 @@ fun ActiveCallBanner(
                     launchSingleTop = true
                 }
             },
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(containerColor = containerBg),
         border = borderStroke
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             // Icon Surface
             Surface(
-                modifier = Modifier.size(42.dp),
+                modifier = Modifier.size(38.dp),
                 shape = CircleShape,
                 color = statusColor.copy(alpha = if (isDark) 0.18f else 0.12f),
                 border = BorderStroke(1.dp, statusColor.copy(alpha = 0.3f))
@@ -141,18 +141,18 @@ fun ActiveCallBanner(
                         },
                         contentDescription = null,
                         tint = statusColor,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(14.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = displayName,
                     fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
                     color = if (isDark) Color.White else Color(0xFF0F172A),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis

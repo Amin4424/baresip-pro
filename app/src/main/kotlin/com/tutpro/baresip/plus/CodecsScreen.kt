@@ -17,6 +17,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Reorder
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.ui.Alignment
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -26,8 +36,6 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateListOf
@@ -40,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
@@ -120,41 +129,20 @@ private fun CodecsScreen(
         modifier = Modifier.fillMaxSize().imePadding(),
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
-                Spacer(Modifier.statusBarsPadding())
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = if (media == "audio")
-                                stringResource(R.string.audio_codecs)
-                            else
-                                stringResource(R.string.video_codecs),
-                            fontWeight = FontWeight.Bold
-                        )
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
-                        titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                        actionIconContentColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                            )
-                        }
-                    },
-                    windowInsets = WindowInsets(0, 0, 0, 0),
-                    actions = {
-                        IconButton(
-                            onClick = { checkOnClick(codecs) }) {
-                            Icon(imageVector = Icons.Filled.Check, contentDescription = "Check")
-                        }
+            CustomElements.ModernTopAppBar(
+                title = if (media == "audio")
+                    stringResource(R.string.audio_codecs)
+                else
+                    stringResource(R.string.video_codecs),
+                onBack = onBack,
+                actions = {
+                    IconButton(
+                        onClick = { checkOnClick(codecs) }
+                    ) {
+                        Icon(imageVector = Icons.Filled.Check, contentDescription = "Check", tint = Color.White)
                     }
-                )
-            }
+                }
+            )
         },
         content = { contentPadding ->
             CodecsContent(contentPadding, codecs)
@@ -189,60 +177,70 @@ private fun Codecs(codecs: SnapshotStateList<Codec>) {
     )
 
     LazyColumn(
-        modifier = Modifier.padding(end = 4.dp).verticalScrollbar(state = draggableState.listState),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp)
+            .verticalScrollbar(state = draggableState.listState),
         state = draggableState.listState,
-        contentPadding = PaddingValues(start = 12.dp, end = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(vertical = 10.dp)
     ) {
         draggableItems(
             state = draggableState,
             items = codecs,
             key = { item -> item.name }
         ) { item, isDragging ->
-            ListItem(
-                colors = ListItemDefaults.colors(
+            val isDark = isSystemInDarkTheme() || BaresipService.darkTheme.value
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
                     containerColor = if (isDragging)
-                        MaterialTheme.colorScheme.surfaceContainer
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                    else if (isDark)
+                        Color(0xFF131C2E)
                     else
-                        Color.Transparent
+                        Color.White
                 ),
-                headlineContent = {
-                    Text(text = item.name,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .alpha(if (item.enabled.value) 1.0f else 0.5f)
-                            .padding(start = 6.dp)
-                            .combinedClickable(
-                                onClick = {},
-                                onLongClick = {
-                                    item.enabled.value = !item.enabled.value
-                                    if (item.enabled.value) {
-                                        val index = codecs.indexOf(item)
-                                        codecs.removeAt(index)
-                                        codecs.add(0, item)
-                                    }
-                                    else {
-                                        val index = codecs.indexOf(item)
-                                        codecs.removeAt(index)
-                                        codecs.add(item)
-                                    }
-                                }
-                            )
-                    )
-                },
-                trailingContent = {
+                border = BorderStroke(
+                    1.dp,
+                    if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f)
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isDragging) 6.dp else 1.5.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Icon(
                         modifier = Modifier.dragHandle(state = draggableState, key = item.name),
-                        imageVector =Icons.Filled.Reorder,
-                        contentDescription = null
+                        imageVector = Icons.Filled.Reorder,
+                        contentDescription = "Reorder",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                },
-            )
-            if (codecs.indexOf(item) > 0)
-                HorizontalDivider(
-                    color = MaterialTheme.colorScheme.outlineVariant,
-                    modifier = Modifier.padding(horizontal = 12.dp),
-                    thickness = 1.dp
-                )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = item.name,
+                        modifier = Modifier
+                            .weight(1f)
+                            .alpha(if (item.enabled.value) 1.0f else 0.5f),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Switch(
+                        checked = item.enabled.value,
+                        onCheckedChange = { isChecked ->
+                            item.enabled.value = isChecked
+                            val index = codecs.indexOf(item)
+                            codecs.removeAt(index)
+                            if (isChecked) codecs.add(0, item) else codecs.add(item)
+                        }
+                    )
+                }
+            }
         }
     }
 }

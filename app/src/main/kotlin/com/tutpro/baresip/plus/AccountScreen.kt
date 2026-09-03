@@ -27,6 +27,12 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -167,32 +173,16 @@ private fun AccountScreen(
         modifier = Modifier.fillMaxSize().imePadding(),
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
-                Spacer(Modifier.statusBarsPadding())
-                TopAppBar(
-                    title = { Text(text = acc.text(), fontWeight = FontWeight.Bold) },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
-                        titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                        actionIconContentColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = null,
-                            )
-                        }
-                    },
-                    windowInsets = WindowInsets(0, 0, 0, 0),
-                    actions = {
-                        IconButton(onClick = checkOnClick) {
-                            Icon(imageVector = Icons.Filled.Check, contentDescription = "Check")
-                        }
-                    },
-                )
-            }
+            CustomElements.ModernTopAppBar(
+                title = acc.text(),
+                subtitle = aor.substringAfter(":"),
+                onBack = onBack,
+                actions = {
+                    IconButton(onClick = checkOnClick) {
+                        Icon(imageVector = Icons.Filled.Check, contentDescription = "Check", tint = Color.White)
+                    }
+                }
+            )
         }
     ) { contentPadding ->
         if (isAccountLoaded)
@@ -1311,6 +1301,39 @@ private fun AccountContent(
             lastButtonText = stringResource(R.string.ok),
         )
 
+    @Composable
+    fun SectionCard(
+        title: String,
+        content: @Composable ColumnScope.() -> Unit
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 4.dp),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                content()
+            }
+        }
+    }
+
     keyboardController = LocalSoftwareKeyboardController.current
 
     val scrollState = rememberScrollState()
@@ -1319,53 +1342,64 @@ private fun AccountContent(
         modifier = Modifier
             .fillMaxWidth()
             .padding(contentPadding)
-            .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 16.dp)
+            .padding(vertical = 8.dp)
             .verticalScrollbar(scrollState)
             .verticalScroll(state = scrollState),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        AoR(resumeToggle)
-        Nickname()
-        if (ua.account.isMobile)
-            SimManager()
-        if (!ua.account.isMobile) {
-            DisplayName()
-            AuthUser()
-            AuthPass()
-            if (showPasswordDialog.value)
-                AskPassword(ctx, navController, ua)
-            Outbound()
-            Register()
-            if (viewModel.register.collectAsState().value) {
-                RegInt()
-                CheckOrigin()
+        SectionCard(title = "Identity & Credentials") {
+            AoR(resumeToggle)
+            Nickname()
+            if (ua.account.isMobile)
+                SimManager()
+            if (!ua.account.isMobile) {
+                DisplayName()
+                AuthUser()
+                AuthPass()
+                if (showPasswordDialog.value)
+                    AskPassword(ctx, navController, ua)
             }
         }
-        Blocking(navController, aor)
+
         if (!ua.account.isMobile) {
-            AudioCodecs(navController, aor)
-            VideoCodecs(navController, aor)
-            MediaEnc()
-            MediaNat()
-            if (showStun) {
-                StunServer()
-                StunUser()
-                StunPass()
+            SectionCard(title = "Registration & Proxy") {
+                Outbound()
+                Register()
+                if (viewModel.register.collectAsState().value) {
+                    RegInt()
+                    CheckOrigin()
+                }
             }
-            RtcpMux()
-            Rel100()
-            Dtmf()
-            Redirect()
+
+            SectionCard(title = "Media & Codecs") {
+                AudioCodecs(navController, aor)
+                VideoCodecs(navController, aor)
+                MediaEnc()
+                MediaNat()
+                if (showStun) {
+                    StunServer()
+                    StunUser()
+                    StunPass()
+                }
+                RtcpMux()
+                Rel100()
+                Dtmf()
+                Redirect()
+            }
         }
-        Answer()
-        Voicemail()
-        CountryCode()
-        if (!ua.account.isMobile)
-            TelProvider()
-        NumericKeypad()
-        DefaultAccount()
-        if (!ua.account.isMobile)
-            CustomParams()
+
+        SectionCard(title = "Call Management & Voicemail") {
+            Blocking(navController, aor)
+            Answer()
+            Voicemail()
+            CountryCode()
+            if (!ua.account.isMobile)
+                TelProvider()
+            NumericKeypad()
+            DefaultAccount()
+            if (!ua.account.isMobile)
+                CustomParams()
+        }
     }
 }
 

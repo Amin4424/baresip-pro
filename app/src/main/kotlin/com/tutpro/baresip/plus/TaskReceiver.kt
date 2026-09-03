@@ -13,6 +13,7 @@ class TaskReceiver : BroadcastReceiver() {
 
         when (intent.action) {
 
+            "com.tutpro.baresip.promax.REGISTER", "com.tutpro.baresip.promax.UNREGISTER",
             "com.tutpro.baresip.plus.REGISTER", "com.tutpro.baresip.plus.UNREGISTER" -> {
                 var aor = intent.getStringExtra("aor")
                 if (aor == null) {
@@ -27,7 +28,7 @@ class TaskReceiver : BroadcastReceiver() {
                     return
                 }
                 val acc = ua.account
-                if (intent.action == "com.tutpro.baresip.plus.REGISTER") {
+                if (intent.action?.endsWith(".REGISTER") == true) {
                     Log.d(TAG, "TaskReceiver: registering $aor")
                     Api.account_set_regint(acc.accp, REGISTRATION_INTERVAL)
                     Api.ua_register(ua.uap)
@@ -42,7 +43,7 @@ class TaskReceiver : BroadcastReceiver() {
                 }
             }
 
-            "com.tutpro.baresip.plus.QUIT" -> {
+            "com.tutpro.baresip.promax.QUIT", "com.tutpro.baresip.plus.QUIT" -> {
                 Log.d(TAG, "TaskReceiver: quiting")
                 val baresipService = Intent(context, BaresipService::class.java)
                 if (BaresipService.isServiceRunning) {

@@ -849,7 +849,7 @@ class BaresipService: Service() {
         val currentNightMode = newConfig.uiMode and Configuration.UI_MODE_NIGHT_MASK
         when (currentNightMode) {
             Configuration.UI_MODE_NIGHT_NO ->
-                darkTheme.value = Preferences(this).displayTheme == AppCompatDelegate.MODE_NIGHT_YES
+                darkTheme.value = Preferences(this).displayTheme != AppCompatDelegate.MODE_NIGHT_NO
             Configuration.UI_MODE_NIGHT_YES ->
                 darkTheme.value = true
         }
@@ -1686,6 +1686,7 @@ class BaresipService: Service() {
             true
         ).add()
         ua.account.unreadMessages = true
+        messageUpdate.postValue(System.currentTimeMillis())
 
         if (!Utils.isVisible()) {
             val piFlags = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
@@ -1786,7 +1787,7 @@ class BaresipService: Service() {
 
         postServiceEvent(
             ServiceEvent(
-                "message show",
+                "message",
                 arrayListOf(uap, peerUri),
                 System.nanoTime()
             )
@@ -3420,7 +3421,7 @@ class BaresipService: Service() {
         val androidContacts = mutableStateOf(emptyList<Contact.AndroidContact>())
         val contactNames = mutableStateOf(emptyList<String>())
 
-        val darkTheme = mutableStateOf(false)
+        val darkTheme = mutableStateOf(true)
         val dynamicColors = mutableStateOf(false)
         var messages by mutableStateOf(emptyList<Message>())
         val messageUpdate = MutableLiveData<Long>()

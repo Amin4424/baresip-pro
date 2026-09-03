@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -41,6 +42,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -164,34 +171,15 @@ private fun SettingsScreen(
         modifier = Modifier.fillMaxSize().imePadding(),
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
-                Spacer(Modifier.statusBarsPadding())
-                TopAppBar(
-                    title = {
-                        Text(text = stringResource(R.string.configuration), fontWeight = FontWeight.Bold)
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
-                        titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                        actionIconContentColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                            )
-                        }
-                    },
-                    windowInsets = WindowInsets(0, 0, 0, 0),
-                    actions = {
-                        IconButton(onClick = checkOnClick) {
-                            Icon(imageVector = Icons.Filled.Check, contentDescription = "Check")
-                        }
-                    },
-                )
-            }
+            CustomElements.ModernTopAppBar(
+                title = stringResource(R.string.configuration),
+                onBack = onBack,
+                actions = {
+                    IconButton(onClick = checkOnClick) {
+                        Icon(imageVector = Icons.Filled.Check, contentDescription = "Check", tint = Color.White)
+                    }
+                }
+            )
         }
     ) { contentPadding ->
 
@@ -1320,50 +1308,119 @@ private fun SettingsContent(
         }
     }
 
+    @Composable
+    fun SectionCard(
+        title: String,
+        content: @Composable ColumnScope.() -> Unit
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 4.dp),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                content()
+            }
+        }
+    }
+
     val scrollState = rememberScrollState()
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(contentPadding)
-            .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp)
+            .padding(vertical = 8.dp)
             .verticalScrollbar(scrollState)
             .verticalScroll(scrollState),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        StartAutomatically()
-        AddressFamily()
-        ListenAddress()
-        TransportProtocols()
-        DnsServers()
-        TlsCertificateFile(activity)
-        VerifyServer()
-        CaFile(activity)
-        UserAgent()
-        UniqueContactUri()
-        AudioSettings(navController)
-        VideoSize()
-        VideoFps()
-        if (VERSION.SDK_INT >= 29) {
-            DefaultDialer()
-            DefaultMessaging()
-            val defaultDialer by viewModel.defaultDialer.collectAsState()
-            val defaultMessaging by viewModel.defaultMessaging.collectAsState()
-            if (!defaultDialer && !defaultMessaging)
-                BatteryOptimizations()
+        SectionCard(title = "Network & Connectivity") {
+            StartAutomatically()
+            AddressFamily()
+            ListenAddress()
+            TransportProtocols()
+            DnsServers()
+            TlsCertificateFile(activity)
+            VerifyServer()
+            CaFile(activity)
+            UserAgent()
+            UniqueContactUri()
         }
-        else
-            BatteryOptimizations()
-        DarkTheme()
-        if (VERSION.SDK_INT >= 31)
-            DynamicColors()
-        ColorBlind()
-        ProximitySensing()
-        Debug()
-        val debug by viewModel.debug.collectAsState()
-        if (debug)
-            SipTrace()
-        Reset(onRestartApp)
+
+        SectionCard(title = "Media & Codecs") {
+            AudioSettings(navController)
+            VideoSize()
+            VideoFps()
+        }
+
+        SectionCard(title = "System & Integration") {
+            if (VERSION.SDK_INT >= 29) {
+                DefaultDialer()
+                DefaultMessaging()
+                val defaultDialer by viewModel.defaultDialer.collectAsState()
+                val defaultMessaging by viewModel.defaultMessaging.collectAsState()
+                if (!defaultDialer && !defaultMessaging)
+                    BatteryOptimizations()
+            } else {
+                BatteryOptimizations()
+            }
+            ProximitySensing()
+        }
+
+        SectionCard(title = "Appearance & Advanced") {
+            DarkTheme()
+            if (VERSION.SDK_INT >= 31)
+                DynamicColors()
+            ColorBlind()
+            Debug()
+            val debug by viewModel.debug.collectAsState()
+            if (debug)
+                SipTrace()
+            Reset(onRestartApp)
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Baresip Pro Max",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Normal,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 

@@ -143,13 +143,14 @@ object Config {
             "${config}sip_cuser_random no\n"
 
         val darkTheme = previousVariable("dark_theme")
-        Preferences(ctx).displayTheme = if (darkTheme == "yes") {
+        Preferences(ctx).displayTheme = if (darkTheme == "no") {
+            config = "${config}dark_theme no\n"
+            BaresipService.darkTheme.value = false
+            AppCompatDelegate.MODE_NIGHT_NO
+        } else {
             config = "${config}dark_theme yes\n"
             BaresipService.darkTheme.value = true
             AppCompatDelegate.MODE_NIGHT_YES
-        } else {
-            BaresipService.darkTheme.value = false
-            AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
         }
 
         val dynamicColors = previousVariable("dynamic_colors")
