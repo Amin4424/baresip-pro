@@ -1,9 +1,13 @@
 package com.tutpro.baresip.plus
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,8 +40,6 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.PauseCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -45,10 +47,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -77,30 +81,35 @@ fun InCallContent(
     onInfo: () -> Unit,
     onHangup: () -> Unit
 ) {
-    val redColor = Color(0xFFEA4335)
-    val greenColor = Color(0xFF2ABB86)
-    val yellowColor = Color(0xFFF9A825)
+    val isDark = isSystemInDarkTheme() || BaresipService.darkTheme.value
+
+    val redColor = Color(0xFFFF3B30)
+    val crimsonDeep = Color(0xFFC62828)
+    val greenColor = Color(0xFF00E676)
+    val yellowColor = Color(0xFFF59E0B)
+    val primaryCyan = Color(0xFF00B0FF)
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.fillMaxWidth()
     ) {
-        // Connected In-Call Controls Card
-        Card(
+        // Connected In-Call Floating Frosted Glass Deck
+        Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .shadow(4.dp, RoundedCornerShape(28.dp)),
+                .shadow(
+                    if (isDark) 16.dp else 10.dp,
+                    RoundedCornerShape(28.dp),
+                    spotColor = if (isDark) Color.Black else Color(0x14000000)
+                ),
             shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            border = androidx.compose.foundation.BorderStroke(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-            )
+            color = if (isDark) Color.White.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.90f),
+            border = BorderStroke(1.dp, if (isDark) Color.White.copy(alpha = 0.15f) else Color(0xFFE2E8F0))
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 14.dp, horizontal = 4.dp)
+                    .padding(vertical = 14.dp, horizontal = 6.dp)
             ) {
                 // Row 1: Mute, Keypad, Speaker, Hold/Resume
                 Row(
@@ -114,6 +123,7 @@ fun InCallContent(
                         label = if (isMicMuted) stringResource(R.string.unmute) else stringResource(R.string.mute),
                         isActive = isMicMuted,
                         activeColor = redColor,
+                        isDark = isDark,
                         onClick = onToggleMute
                     )
 
@@ -122,8 +132,9 @@ fun InCallContent(
                         icon = Icons.Default.Dialpad,
                         label = stringResource(R.string.keypad),
                         isActive = false,
-                        activeColor = MaterialTheme.colorScheme.primary,
+                        activeColor = primaryCyan,
                         enabled = !isHeldByPeer,
+                        isDark = isDark,
                         onClick = onToggleDialpad
                     )
 
@@ -133,16 +144,18 @@ fun InCallContent(
                         label = stringResource(R.string.speaker),
                         isActive = isSpeakerOn,
                         activeColor = greenColor,
+                        isDark = isDark,
                         onClick = onToggleSpeaker
                     )
 
                     InCallControlButton(
                         modifier = Modifier.weight(1f),
-                        icon = if (isHold) Icons.Default.PlayArrow else Icons.Outlined.PauseCircle,
-                        label = if (isHold) stringResource(R.string.resume) else stringResource(R.string.hold),
-                        isActive = isHold,
+                        icon = if (isHeldByPeer) Icons.Outlined.PauseCircle else if (isHold) Icons.Default.PlayArrow else Icons.Outlined.PauseCircle,
+                        label = if (isHeldByPeer) stringResource(R.string.on_hold) else if (isHold) stringResource(R.string.resume) else stringResource(R.string.hold),
+                        isActive = isHold || isHeldByPeer,
                         activeColor = yellowColor,
                         enabled = !isHeldByPeer,
+                        isDark = isDark,
                         onClick = onToggleHold
                     )
                 }
@@ -162,6 +175,7 @@ fun InCallContent(
                             label = if (isRecording) stringResource(R.string.recording) else stringResource(R.string.record),
                             isActive = isRecording,
                             activeColor = redColor,
+                            isDark = isDark,
                             onClick = onToggleRecord
                         )
 
@@ -170,8 +184,9 @@ fun InCallContent(
                             icon = Icons.Outlined.ArrowCircleRight,
                             label = stringResource(R.string.transfer),
                             isActive = false,
-                            activeColor = MaterialTheme.colorScheme.primary,
+                            activeColor = primaryCyan,
                             enabled = !isHeldByPeer,
+                            isDark = isDark,
                             onClick = onTransfer
                         )
                     }
@@ -181,17 +196,19 @@ fun InCallContent(
                         icon = Icons.Outlined.Info,
                         label = stringResource(R.string.info),
                         isActive = false,
-                        activeColor = MaterialTheme.colorScheme.primary,
+                        activeColor = primaryCyan,
+                        isDark = isDark,
                         onClick = onInfo
                     )
 
                     if (hasVideo && onToggleVideo != null) {
                         InCallControlButton(
                             modifier = Modifier.weight(1f),
-                            icon = if (isVideoOn) Icons.Filled.Videocam else Icons.Filled.VideocamOff,
+                            icon = if (isVideoOn || hasVideo) Icons.Filled.Videocam else Icons.Filled.VideocamOff,
                             label = stringResource(R.string.video),
-                            isActive = isVideoOn,
+                            isActive = isVideoOn || hasVideo,
                             activeColor = greenColor,
+                            isDark = isDark,
                             onClick = onToggleVideo
                         )
                     }
@@ -205,10 +222,18 @@ fun InCallContent(
         Box(
             modifier = Modifier
                 .size(76.dp)
-                .shadow(6.dp, CircleShape)
-                .background(redColor, CircleShape)
+                .shadow(18.dp, CircleShape, spotColor = redColor)
+                .background(
+                    Brush.linearGradient(listOf(redColor, crimsonDeep)),
+                    CircleShape
+                )
+                .border(1.5.dp, Color.White.copy(alpha = 0.25f), CircleShape)
                 .clip(CircleShape)
-                .clickable(onClick = onHangup),
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onHangup
+                ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -227,45 +252,56 @@ fun InCallDialpadSheet(
     onSendDtmf: (Char) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val isDark = isSystemInDarkTheme() || BaresipService.darkTheme.value
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = 24.dp)
             .padding(bottom = 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // DTMF Header / Display Row (Fixed single-line height, centered, never expands vertically)
-        Row(
+        // DTMF Header Display Box
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = if (isDark) Color.White.copy(alpha = 0.08f) else Color(0xFFF1F5F9),
+            border = BorderStroke(1.dp, if (isDark) Color(0xFF00B0FF).copy(alpha = 0.35f) else Color(0xFF00B0FF).copy(alpha = 0.5f)),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(44.dp)
-                .padding(horizontal = 8.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
+                .height(56.dp)
         ) {
-            val scrollState = rememberScrollState()
-            LaunchedEffect(dtmfText) {
-                scrollState.animateScrollTo(scrollState.maxValue)
-            }
-
-            Box(
+            Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(scrollState),
-                contentAlignment = Alignment.Center
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
-                Text(
-                    text = dtmfText.ifEmpty { stringResource(R.string.keypad) },
-                    fontSize = if (dtmfText.isEmpty()) 20.sp else 28.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (dtmfText.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    textAlign = TextAlign.Center
-                )
+                val scrollState = rememberScrollState()
+                LaunchedEffect(dtmfText) {
+                    scrollState.animateScrollTo(scrollState.maxValue)
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(scrollState),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = dtmfText.ifEmpty { stringResource(R.string.keypad) },
+                        fontSize = if (dtmfText.isEmpty()) 16.sp else 30.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = if (dtmfText.isEmpty()) 0.sp else 4.sp,
+                        color = if (dtmfText.isEmpty()) (if (isDark) Color.White.copy(alpha = 0.45f) else Color(0xFF64748B)) else (if (isDark) Color.White else Color(0xFF0F172A)),
+                        maxLines = 1,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
         // 3x4 DTMF Dialpad Grid
         val dialpadKeys = listOf(
@@ -276,7 +312,7 @@ fun InCallDialpadSheet(
         )
 
         Column(
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             for (row in dialpadKeys) {
@@ -285,32 +321,51 @@ fun InCallDialpadSheet(
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     for ((digit, subtext) in row) {
-                        Surface(
+                        Box(
                             modifier = Modifier
-                                .size(66.dp)
+                                .size(72.dp)
+                                .shadow(if (isDark) 6.dp else 4.dp, CircleShape, spotColor = if (isDark) Color(0xFF00B0FF).copy(alpha = 0.3f) else Color(0x14000000))
+                                .background(
+                                    if (isDark) {
+                                        Brush.verticalGradient(
+                                            listOf(
+                                                Color.White.copy(alpha = 0.12f),
+                                                Color.White.copy(alpha = 0.05f)
+                                            )
+                                        )
+                                    } else {
+                                        Brush.verticalGradient(
+                                            listOf(
+                                                Color.White,
+                                                Color(0xFFF8FAFC)
+                                            )
+                                        )
+                                    },
+                                    CircleShape
+                                )
+                                .border(1.2.dp, if (isDark) Color.White.copy(alpha = 0.18f) else Color(0xFFCBD5E1), CircleShape)
                                 .clip(CircleShape)
-                                .clickable { onSendDtmf(digit[0]) },
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-                            tonalElevation = 2.dp
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = { onSendDtmf(digit[0]) }
+                                ),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center,
-                                modifier = Modifier.fillMaxSize()
-                            ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
                                     text = digit,
-                                    fontSize = 24.sp,
+                                    fontSize = 26.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = if (isDark) Color.White else Color(0xFF0F172A)
                                 )
                                 if (subtext.isNotEmpty()) {
                                     Text(
                                         text = subtext,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                                        letterSpacing = 1.sp
                                     )
                                 }
                             }
@@ -320,25 +375,26 @@ fun InCallDialpadSheet(
             }
         }
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
-        // Dismiss / Hide Keypad Button
-        Button(
-            onClick = onDismiss,
-            colors = ButtonDefaults.filledTonalButtonColors(),
-            shape = RoundedCornerShape(20.dp),
-            modifier = Modifier.height(38.dp)
+        // Close / Dismiss Sheet Button
+        Box(
+            modifier = Modifier
+                .size(width = 120.dp, height = 44.dp)
+                .background(if (isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.06f), RoundedCornerShape(22.dp))
+                .clip(RoundedCornerShape(22.dp))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onDismiss
+                ),
+            contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowDown,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = stringResource(R.string.cancel),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                color = if (isDark) Color.White else Color(0xFF0F172A)
             )
         }
     }
@@ -352,29 +408,30 @@ private fun InCallControlButton(
     isActive: Boolean,
     activeColor: Color,
     enabled: Boolean = true,
+    isDark: Boolean = true,
     onClick: () -> Unit
 ) {
     val backgroundColor by animateColorAsState(
         when {
-            !enabled -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
-            isActive -> activeColor.copy(alpha = 0.18f)
-            else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+            !enabled -> if (isDark) Color.White.copy(alpha = 0.03f) else Color.Black.copy(alpha = 0.02f)
+            isActive -> activeColor.copy(alpha = if (isDark) 0.25f else 0.18f)
+            else -> if (isDark) Color.White.copy(alpha = 0.08f) else Color(0xFFF1F5F9)
         },
         label = "inCallBtnBg"
     )
     val iconTint by animateColorAsState(
         when {
-            !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+            !enabled -> if (isDark) Color.White.copy(alpha = 0.25f) else Color(0xFF94A3B8)
             isActive -> activeColor
-            else -> MaterialTheme.colorScheme.onSurfaceVariant
+            else -> if (isDark) Color.White else Color(0xFF334155)
         },
         label = "inCallBtnTint"
     )
     val textTint by animateColorAsState(
         when {
-            !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+            !enabled -> if (isDark) Color(0xFF64748B) else Color(0xFF94A3B8)
             isActive -> activeColor
-            else -> MaterialTheme.colorScheme.onSurfaceVariant
+            else -> if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
         },
         label = "inCallBtnTextTint"
     )
@@ -383,30 +440,38 @@ private fun InCallControlButton(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier.padding(vertical = 4.dp, horizontal = 2.dp)
     ) {
-        Surface(
+        Box(
             modifier = Modifier
                 .size(54.dp)
-                .clip(CircleShape)
-                .clickable(enabled = enabled, onClick = onClick),
-            shape = CircleShape,
-            color = backgroundColor,
-            border = if (isActive && enabled) androidx.compose.foundation.BorderStroke(1.5.dp, activeColor) else null
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = label,
-                    tint = iconTint,
-                    modifier = Modifier.size(24.dp)
+                .background(backgroundColor, CircleShape)
+                .border(
+                    width = 1.dp,
+                    color = if (isActive && enabled) activeColor.copy(alpha = 0.6f) else if (isDark) Color.White.copy(alpha = 0.12f) else Color(0xFFCBD5E1),
+                    shape = CircleShape
                 )
-            }
+                .clip(CircleShape)
+                .clickable(
+                    enabled = enabled,
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = iconTint,
+                modifier = Modifier.size(24.dp)
+            )
         }
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(5.dp))
         Text(
             text = label,
             fontSize = 11.sp,
             fontWeight = if (isActive && enabled) FontWeight.Bold else FontWeight.Normal,
-            color = textTint
+            color = textTint,
+            maxLines = 1
         )
     }
 }

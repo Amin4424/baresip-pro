@@ -266,8 +266,13 @@ class MainActivity : ComponentActivity() {
                             }
                             is NavigationCommand.NavigateToChats ->
                                 navController.navigate("chats") { launchSingleTop = true }
-                            is NavigationCommand.NavigateToCall ->
-                                navController.navigate("call")
+                            is NavigationCommand.NavigateToCall -> {
+                                if (navController.currentDestination?.route != "call") {
+                                    navController.navigate("call") {
+                                        launchSingleTop = true
+                                    }
+                                }
+                            }
                             is NavigationCommand.NavigateToHome ->
                                 navController.navigate("main") {
                                     popUpTo("main") { inclusive = true }

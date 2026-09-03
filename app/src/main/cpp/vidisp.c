@@ -48,6 +48,12 @@ static void renderer_destroy(struct vidisp_st *st)
     LOGD("At renderer_destroy() on thread %li\n", (long)pthread_self());
 
     if (st->display != EGL_NO_DISPLAY) {
+        if (st->surface != EGL_NO_SURFACE && st->context != EGL_NO_CONTEXT) {
+            eglMakeCurrent(st->display, st->surface, st->surface, st->context);
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+            eglSwapBuffers(st->display, st->surface);
+        }
         eglMakeCurrent(st->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
         if (st->surface != EGL_NO_SURFACE) {
             eglDestroySurface(st->display, st->surface);

@@ -28,9 +28,13 @@ static void JNICALL OnGetFrame(JNIEnv *env, jobject obj, jlong user_data, jobjec
         jobject plane2, jint rowStride2, jint pixStride2);
 
 static void JNICALL OnSetRotation(JNIEnv *env, jobject obj, jlong user_data, jint degrees);
+static void JNICALL OnSetMute(JNIEnv *env, jobject obj, jlong user_data, jboolean mute);
 
 static bool jni_init_ids()
 {
+    if (jobjs.cam2.cls != NULL)
+        return true;
+
     JNIEnv *jni_env;
     bool status = true;
     bool with_attach = jni_get_env(&jni_env);
@@ -76,9 +80,10 @@ static bool jni_init_ids()
     {
         JNINativeMethod m[] = {
             {"pushFrame", "(JLjava/nio/ByteBuffer;IILjava/nio/ByteBuffer;IILjava/nio/ByteBuffer;II)V", (void *)&OnGetFrame},
-            {"setRotation", "(JI)V", (void *)&OnSetRotation}
+            {"setRotation", "(JI)V", (void *)&OnSetRotation},
+            {"setMute", "(JZ)V", (void *)&OnSetMute}
         };
-        if ((*jni_env)->RegisterNatives(jni_env, jobjs.cam2.cls, m, 2)) {
+        if ((*jni_env)->RegisterNatives(jni_env, jobjs.cam2.cls, m, 3)) {
             status = false;
         }
     }
@@ -113,6 +118,8 @@ void android_camera2_destructor(void *arg)
     if (st->jcam) {
         /* Call Camera2::Stop() method */
         (*jni_env)->CallVoidMethod(jni_env, st->jcam, jobjs.cam2.m_stop);
+        (*jni_env)->DeleteGlobalRef(jni_env, st->jcam);
+        st->jcam = NULL;
     }
 
     /* Wait for termination of other thread */
@@ -139,8 +146,6 @@ void android_camera2_destructor(void *arg)
     }
 
     jni_detach_env(with_attach);
-
-    jni_deinit_ids();
 }
 
 static void process_frame(struct vidsrc_st *st)
@@ -333,6 +338,13 @@ static void JNICALL OnGetFrame(JNIEnv *env, jobject obj, jlong user_data, jobjec
         isWrite = false;
     }
 
+    if (st->muted) {
+        for (int x = 0; x < size.w; x++) {
+            vidframe_draw_vline(st->frame, x, 0, size.h, 0, 0, 0);
+        }
+        isWrite = false;
+    }
+
     if (isWrite) {
         // Fill the frame
         vidframe_init_buf(st->frame, st->fmt, &size, st->buf);
@@ -347,5 +359,15 @@ static void JNICALL OnSetRotation(JNIEnv *env, jobject obj, jlong user_data, jin
     struct vidsrc_st *st = (struct vidsrc_st *)(intptr_t)user_data;
     if (st) {
         st->rotate = (int)degrees;
+    }
+}
+
+static void JNICALL OnSetMute(JNIEnv *env, jobject obj, jlong user_data, jboolean mute)
+{
+    (void)env;
+    (void)obj;
+    struct vidsrc_st *st = (struct vidsrc_st *)(intptr_t)user_data;
+    if (st) {
+        st->muted = (bool)mute;
     }
 }

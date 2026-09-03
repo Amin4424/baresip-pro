@@ -1199,8 +1199,18 @@ class BaresipService: Service() {
                         return
                     }
 
-                    "remote call answered" ->
+                    "remote call answered" -> {
+                        if (call != null) {
+                            val rdir = ev.getOrNull(4)?.toIntOrNull() ?: 0
+                            val remoteHasVideo = ev.getOrNull(2) == "1"
+                            val peerSendsVideo = remoteHasVideo && ((rdir and Api.SDP_SENDONLY != 0) || rdir == Api.SDP_SENDRECV)
+                            Handler(Looper.getMainLooper()).post {
+                                call.remoteVideo.value = peerSendsVideo
+                            }
+                            handleCallUpdate(call, callp, ev)
+                        }
                         newEvent = "call update"
+                    }
 
                     "remote call offered" -> {
                         val callHasVideo = ev[1] == "1"
@@ -1210,11 +1220,14 @@ class BaresipService: Service() {
                             ev[4].toInt()
                         else
                             ev[4].toInt() and Api.SDP_RECVONLY
-                        when (ev[5]) {
-                            "0", "1" -> call!!.held = true  // inactive, recvonly
-                            "2", "3" -> call!!.held = false // sendonly, sendrecv
+                        val peerSendsVideo = remoteHasVideo && ((rdir and Api.SDP_SENDONLY != 0) || rdir == Api.SDP_SENDRECV)
+                        Handler(Looper.getMainLooper()).post {
+                            call?.remoteVideo?.value = peerSendsVideo
                         }
-                        if (!isMainVisible || call!!.status.value != "connected")
+                        if (call != null) {
+                            handleCallUpdate(call, callp, ev)
+                        }
+                        if (call!!.status.value != "connected")
                             return
                         if (!(callHasVideo && remoteHasVideo && ldir == 0) &&
                                 (!callHasVideo && remoteHasVideo && (rdir == Api.SDP_SENDRECV) && (ldir != rdir))
@@ -1270,58 +1283,10 @@ class BaresipService: Service() {
                     }
 
                     "call update" -> {
-                        Handler(Looper.getMainLooper()).post {
-                            if (call != null) {
-                                val newHeldState = when (ev[1].toInt()) {
-                                    Api.SDP_INACTIVE, Api.SDP_RECVONLY -> true
-                                    else -> false
-                                }
-                                val connection = ConnectionService.connections[callp]
-                                if (call.held && !newHeldState) {
-                                    Log.d(TAG, "Call ${call.callp} un-held by peer.")
-                                    call.onhold = false
-                                    // Use a Coroutine with a small delay to let the SIP
-                                    // transaction (the re-INVITE from the peer) finish
-                                    // before trying to hold the other call and resume this one.
-                                    CoroutineScope(Dispatchers.Main).launch {
-                                        delay(100.milliseconds)
-                                        call.resume()
-                                    }
-                                }
-                                call.held = newHeldState
-                                if (newHeldState) {
-                                    // Peer put us on hold
-                                    call.showOnHoldNotice.value = true
-                                    call.callOnHold.value = true
-                                    if (connection?.state != Connection.STATE_HOLDING)
-                                        connection?.setOnHold()
-                                }
-                                else {
-                                    // Peer un-held us
-                                    call.showOnHoldNotice.value = false
-                                    if (!call.onhold) {
-                                        call.callOnHold.value = false
-                                        if (connection?.state != Connection.STATE_ACTIVE)
-                                            connection?.setActive()
-                                    }
-                                }
-                                if (call.state() == Api.CALL_STATE_EARLY)
-                                    if ((ev[1].toInt() and Api.SDP_RECVONLY) != 0)
-                                        stopMediaPlayer()
-                                if (call.status.value == "connected" && !call.held && !call.onhold) {
-                                    if (call.callOnHold.value || call.showOnHoldNotice.value) {
-                                        Log.d(
-                                            TAG,
-                                            "Safety guard: Clearing stuck hold flags for ${call.callp}"
-                                        )
-                                        call.callOnHold.value = false
-                                        call.showOnHoldNotice.value = false
-                                        connection?.setActive()
-                                    }
-                                }
-                            }
+                        if (call != null) {
+                            handleCallUpdate(call, callp, ev)
                         }
-                        if (!isMainVisible || call?.status?.value != "connected")
+                        if (call?.status?.value != "connected")
                             return
                     }
 
@@ -1550,6 +1515,68 @@ class BaresipService: Service() {
             ServiceEvent(newEvent ?: event, arrayListOf(uap, callp), System.nanoTime())
         )
 
+    }
+
+    private fun handleCallUpdate(call: Call, callp: Long, ev: List<String>) {
+        Handler(Looper.getMainLooper()).post {
+            val ardir = ev.getOrNull(5)
+            val newHeldState = if (call.onhold) {
+                // We placed the call on hold ourselves! Peer did NOT put us on hold.
+                false
+            } else if (ev[0] == "remote call offered") {
+                ardir == "0" || ardir == "1" || ardir == "2"
+            } else if (ev[0] == "remote call answered") {
+                ardir == "0" || ardir == "1" || ardir == "2"
+            } else {
+                when (ev.getOrNull(1)?.toIntOrNull()) {
+                    Api.SDP_INACTIVE, Api.SDP_RECVONLY, 2 -> true
+                    else -> false
+                }
+            }
+            val connection = ConnectionService.connections[callp]
+            if (call.held && !newHeldState && !call.onhold) {
+                Log.d(TAG, "Call ${call.callp} un-held by peer.")
+                CoroutineScope(Dispatchers.Main).launch {
+                    delay(100.milliseconds)
+                    call.resume()
+                }
+            }
+            call.held = newHeldState
+            if (newHeldState) {
+                // Peer put us on hold
+                Log.d(TAG, "Call ${call.callp} is now ON HOLD by peer (ardir=$ardir)")
+                call.showOnHoldNotice.value = true
+                call.callOnHold.value = true
+                if (connection?.state != Connection.STATE_HOLDING)
+                    connection?.setOnHold()
+            } else {
+                // Peer un-held us OR local user held the call
+                call.showOnHoldNotice.value = false
+                if (!call.onhold) {
+                    Log.d(TAG, "Call ${call.callp} is now RESUMED (ardir=$ardir)")
+                    call.callOnHold.value = false
+                    if (connection?.state != Connection.STATE_ACTIVE)
+                        connection?.setActive()
+                } else {
+                    Log.d(TAG, "Call ${call.callp} locally on hold (onhold=true)")
+                    call.callOnHold.value = true
+                }
+            }
+            if (call.state() == Api.CALL_STATE_EARLY)
+                if (((ev.getOrNull(1)?.toIntOrNull() ?: 0) and Api.SDP_RECVONLY) != 0)
+                    stopMediaPlayer()
+            if (call.status.value == "connected" && !call.held && !call.onhold) {
+                if (call.callOnHold.value || call.showOnHoldNotice.value) {
+                    Log.d(
+                        TAG,
+                        "Safety guard: Clearing stuck hold flags for ${call.callp}"
+                    )
+                    call.callOnHold.value = false
+                    call.showOnHoldNotice.value = false
+                    connection?.setActive()
+                }
+            }
+        }
     }
 
     @Suppress("unused")

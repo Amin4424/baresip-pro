@@ -130,6 +130,10 @@ class ViewModel: ViewModel() {
         _selectedAor.value = aor
     }
 
+    fun setFocusedCall(call: Call?) {
+        _focusedCall.value = call
+    }
+
     fun triggerAccountUpdate(call: Call? = null) {
         _focusedCall.value = call
         _accountUpdate.value += 1

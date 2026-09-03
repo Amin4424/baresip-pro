@@ -43,15 +43,14 @@ class VideoView(val context: Context) {
         override fun surfaceChanged(holder: SurfaceHolder, format: Int, w: Int, h: Int) {
             Log.d(TAG, "Surface changed")
             set_surface(holder.surface)
-            if (afterCreate) {
-                for (call in Call.calls())
-                    if (call.hasVideo()) {
-                        if (call.startVideoDisplay() != 0)
-                            Log.e(TAG, "Failed to start video display")
-                        break
-                    }
-                afterCreate = false
+            for (call in Call.calls()) {
+                if (call.hasVideo() || call.videoCall) {
+                    if (call.startVideoDisplay() != 0)
+                        Log.e(TAG, "Failed to start video display")
+                    break
+                }
             }
+            afterCreate = false
         }
 
         override fun surfaceDestroyed(holder: SurfaceHolder) {

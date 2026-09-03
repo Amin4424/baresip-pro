@@ -16,6 +16,7 @@ struct vidsrc_st
     void *arg;
     int fmt;
     int rotate;
+    bool muted;
     jobject jcam;
     void *buf;
     size_t buf_size;

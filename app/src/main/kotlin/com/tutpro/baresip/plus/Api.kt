@@ -15,7 +15,7 @@ object Api {
 
     const val SDP_INACTIVE = 0
     const val SDP_RECVONLY = 1
-    // const val SDP_SENDONLY = 2
+    const val SDP_SENDONLY = 2
     const val SDP_SENDRECV = 3
 
     const val CALL_STATE_EARLY = 4

@@ -60,16 +60,27 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Call as CallIcon
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.ContentPaste
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.filled.AddIcCall
-import androidx.compose.material.icons.filled.Call as CallIcon
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.History
@@ -751,6 +762,13 @@ private val showDialog = mutableStateOf(false)
 
 @Composable
 private fun NewDialerCard(ctx: Context, viewModel: ViewModel, dialerState: ViewModel.DialerState) {
+    val isDark = isSystemInDarkTheme() || BaresipService.darkTheme.value
+    val clipboardManager = LocalClipboardManager.current
+
+    val primaryCyan = Color(0xFF00B0FF)
+    val emeraldNeon = Color(0xFF00E676)
+    val emeraldDeep = Color(0xFF00C853)
+
     var textFieldValue by remember {
         mutableStateOf(
             TextFieldValue(
@@ -760,258 +778,333 @@ private fun NewDialerCard(ctx: Context, viewModel: ViewModel, dialerState: ViewM
         )
     }
 
-    LaunchedEffect(dialerState.callUri.value) {
-        if (dialerState.callUri.value != textFieldValue.text) {
-            textFieldValue = textFieldValue.copy(
-                text = dialerState.callUri.value,
-                selection = TextRange(dialerState.callUri.value.length)
-            )
-        }
-    }
+    val suggestions by remember { contactNames }
+    var filteredSuggestions by remember { mutableStateOf<List<AnnotatedString>>(emptyList()) }
+    val lazyListState = rememberLazyListState()
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 4.dp)
-            .shadow(16.dp, RoundedCornerShape(40.dp)),
-        shape = RoundedCornerShape(40.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            .padding(horizontal = 4.dp, vertical = 6.dp)
+            .shadow(6.dp, RoundedCornerShape(26.dp)),
+        shape = RoundedCornerShape(26.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDark) Color(0xFF131B2E) else Color(0xFFFFFFFF)
+        ),
+        border = BorderStroke(1.dp, if (isDark) Color.White.copy(alpha = 0.12f) else Color(0xFFE2E8F0))
     ) {
         Column(
-            modifier = Modifier.padding(top = 16.dp, bottom = 16.dp, start = 20.dp, end = 20.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 18.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Number Display with Backspace
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(60.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(30.dp))
-                    .padding(horizontal = 24.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                CompositionLocalProvider(LocalTextInputService provides null) {
-                    BasicTextField(
-                        value = textFieldValue,
-                        onValueChange = { newValue ->
-                            textFieldValue = newValue
-                            dialerState.callUri.value = newValue.text
-                            dialerState.showSuggestions.value = newValue.text.length > 1
-                        },
-                        readOnly = true,
-                        singleLine = true,
-                        textStyle = TextStyle(
-                            fontSize = 28.sp,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            textAlign = TextAlign.Center
-                        ),
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                if (dialerState.callUri.value.isNotEmpty()) {
-                    val am = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Backspace,
-                        contentDescription = "Backspace",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .size(32.dp)
-                            .combinedClickable(
-                                onClick = {
-                                    am.playSoundEffect(AudioManager.FX_KEYPRESS_DELETE, 1.0f)
-                                    val text = textFieldValue.text
-                                    val selection = textFieldValue.selection
-                                    if (selection.min > 0) {
-                                        val newText = text.substring(0, selection.min - 1) + text.substring(selection.max)
-                                        val newSelection = TextRange(selection.min - 1)
-                                        textFieldValue = TextFieldValue(newText, newSelection)
-                                        dialerState.callUri.value = newText
-                                        dialerState.showSuggestions.value = newText.length > 1
-                                    } else if (selection.min != selection.max) {
-                                        val newText = text.substring(0, selection.min) + text.substring(selection.max)
-                                        val newSelection = TextRange(selection.min)
-                                        textFieldValue = TextFieldValue(newText, newSelection)
-                                        dialerState.callUri.value = newText
-                                        dialerState.showSuggestions.value = newText.length > 1
-                                    }
-                                },
-                                onLongClick = {
-                                    am.playSoundEffect(AudioManager.FX_KEYPRESS_STANDARD, 1.0f)
-                                    textFieldValue = TextFieldValue("")
-                                    dialerState.callUri.value = ""
-                                    dialerState.showSuggestions.value = false
-                                }
-                            )
-                    )
-                } else {
-                    Spacer(modifier = Modifier.width(32.dp))
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            val toneGenerator = remember {
-                try {
-                    ToneGenerator(AudioManager.STREAM_DTMF, 80)
-                } catch (e: Exception) {
-                    null
-                }
-            }
-            DisposableEffect(Unit) {
-                onDispose {
-                    toneGenerator?.release()
-                }
-            }
-
-            val playDtmf = { key: String ->
-                val tone = when (key) {
-                    "1" -> ToneGenerator.TONE_DTMF_1
-                    "2" -> ToneGenerator.TONE_DTMF_2
-                    "3" -> ToneGenerator.TONE_DTMF_3
-                    "4" -> ToneGenerator.TONE_DTMF_4
-                    "5" -> ToneGenerator.TONE_DTMF_5
-                    "6" -> ToneGenerator.TONE_DTMF_6
-                    "7" -> ToneGenerator.TONE_DTMF_7
-                    "8" -> ToneGenerator.TONE_DTMF_8
-                    "9" -> ToneGenerator.TONE_DTMF_9
-                    "0" -> ToneGenerator.TONE_DTMF_0
-                    "*" -> ToneGenerator.TONE_DTMF_S
-                    "#" -> ToneGenerator.TONE_DTMF_P
-                    else -> -1
-                }
-                if (tone != -1) {
-                    try {
-                        toneGenerator?.startTone(tone, 150)
-                    } catch (e: Exception) {
-                        // Ignore
+            // Modern Alphanumeric Text Field
+            OutlinedTextField(
+                value = textFieldValue,
+                onValueChange = { newValue ->
+                    textFieldValue = newValue
+                    dialerState.callUri.value = newValue.text
+                    if (newValue.text.length > 1) {
+                        val normalizedInput = Utils.unaccent(newValue.text)
+                        filteredSuggestions = suggestions
+                            .filter { suggestion ->
+                                Utils.unaccent(suggestion).contains(normalizedInput, ignoreCase = true)
+                            }
+                            .map { suggestion ->
+                                Utils.buildAnnotatedStringWithHighlight(suggestion, newValue.text)
+                            }
+                        dialerState.showSuggestions.value = filteredSuggestions.isNotEmpty()
+                    } else {
+                        filteredSuggestions = emptyList()
+                        dialerState.showSuggestions.value = false
                     }
-                }
-            }
-
-            // Keypad Grid - Stretched and Scaled
-            val keys = listOf(
-                listOf("1", "2", "3"),
-                listOf("4", "5", "6"),
-                listOf("7", "8", "9"),
-                listOf("*", "0", "#")
+                },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = {
+                    Text(
+                        text = stringResource(R.string.enter_uri),
+                        fontSize = 15.sp,
+                        color = if (isDark) Color(0xFF64748B) else Color(0xFF94A3B8),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
+                leadingIcon = {
+                    Box(
+                        modifier = Modifier
+                            .padding(start = 10.dp, end = 6.dp)
+                            .size(36.dp)
+                            .background(
+                                if (isDark) primaryCyan.copy(alpha = 0.15f) else primaryCyan.copy(alpha = 0.10f),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Dialpad,
+                            contentDescription = null,
+                            tint = primaryCyan,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                },
+                trailingIcon = {
+                    if (textFieldValue.text.isNotEmpty()) {
+                        IconButton(
+                            onClick = {
+                                textFieldValue = TextFieldValue("")
+                                dialerState.callUri.value = ""
+                                dialerState.showSuggestions.value = false
+                            },
+                            modifier = Modifier.padding(end = 4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = "Clear",
+                                tint = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    } else {
+                        val clipText = clipboardManager.getText()?.text
+                        if (!clipText.isNullOrBlank()) {
+                            IconButton(
+                                onClick = {
+                                    textFieldValue = TextFieldValue(clipText, TextRange(clipText.length))
+                                    dialerState.callUri.value = clipText
+                                },
+                                modifier = Modifier.padding(end = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.ContentPaste,
+                                    contentDescription = "Paste",
+                                    tint = primaryCyan,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(20.dp),
+                textStyle = TextStyle(
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isDark) Color.White else Color(0xFF0F172A)
+                ),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC),
+                    unfocusedContainerColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC),
+                    focusedBorderColor = primaryCyan,
+                    unfocusedBorderColor = if (isDark) Color.White.copy(alpha = 0.12f) else Color(0xFFE2E8F0),
+                    cursorColor = primaryCyan
+                ),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Email,
+                    imeAction = ImeAction.Go
+                ),
+                keyboardActions = KeyboardActions(
+                    onGo = {
+                        if (dialerState.callUri.value.isNotEmpty()) {
+                            callClick(ctx, viewModel, dialerState, false)
+                        }
+                    }
+                )
             )
 
-            keys.forEach { row ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+            // Contact Suggestions Dropdown List (if matching contacts exist)
+            if (dialerState.showSuggestions.value && filteredSuggestions.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 160.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF1F5F9)
+                    ),
+                    border = BorderStroke(1.dp, if (isDark) Color.White.copy(alpha = 0.10f) else Color(0xFFE2E8F0))
                 ) {
-                    row.forEach { key ->
-                        NewKeypadButton(key) {
-                            playDtmf(key)
-                            val text = textFieldValue.text
-                            val selection = textFieldValue.selection
-                            val newText = text.substring(0, selection.min) + key + text.substring(selection.max)
-                            val newSelection = TextRange(selection.min + 1)
-                            textFieldValue = TextFieldValue(newText, newSelection)
-                            dialerState.callUri.value = newText
-                            dialerState.showSuggestions.value = newText.length > 1
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth(),
+                        state = lazyListState
+                    ) {
+                        items(
+                            items = filteredSuggestions,
+                            key = { suggestion -> suggestion.toString() }
+                        ) { suggestion ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        val selectedStr = suggestion.toString()
+                                        textFieldValue = TextFieldValue(selectedStr, TextRange(selectedStr.length))
+                                        dialerState.callUri.value = selectedStr
+                                        dialerState.showSuggestions.value = false
+                                    }
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Person,
+                                    contentDescription = null,
+                                    tint = primaryCyan,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = suggestion,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (isDark) Color.White else Color(0xFF0F172A),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(18.dp))
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            // Quick Redial hint when text field is empty
+            if (textFieldValue.text.isEmpty()) {
+                val currentUa = UserAgent.ofAor(viewModel.selectedAor.value)
+                val latestPeerUri = currentUa?.let { CallHistoryNew.aorLatestPeerUri(it.account.aor) }
+                if (latestPeerUri != null) {
+                    val friendly = Utils.friendlyUri(ctx, latestPeerUri, currentUa.account)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                dialerState.redialUri = latestPeerUri
+                                textFieldValue = TextFieldValue(friendly, TextRange(friendly.length))
+                                dialerState.callUri.value = friendly
+                            },
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.03f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.History,
+                                contentDescription = null,
+                                tint = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Recent: $friendly",
+                                fontSize = 12.sp,
+                                color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
 
-            // Action Buttons: Call Button and Video Call Button
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Dual Action Call Buttons (Voice Call & Video Call)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Call Button
-                Box(
+                // Audio Call Button
+                Surface(
                     modifier = Modifier
-                        .size(64.dp)
-                        .background(MaterialTheme.colorScheme.secondary, shape = CircleShape)
-                        .clip(CircleShape)
+                        .weight(1f)
+                        .height(52.dp)
+                        .shadow(6.dp, RoundedCornerShape(18.dp), spotColor = Color(0xFF00E676))
+                        .clip(RoundedCornerShape(18.dp))
                         .clickable {
-                            if (dialerState.callUri.value.isNotEmpty()) {
-                                callClick(ctx, viewModel, dialerState, false)
-                            } else {
-                                // Redial logic if URI is empty
-                                val currentUa = UserAgent.ofAor(viewModel.selectedAor.value)
-                                if (currentUa != null) {
-                                    val latestPeerUri = CallHistoryNew.aorLatestPeerUri(currentUa.account.aor)
-                                    if (latestPeerUri != null) {
-                                        dialerState.redialUri = latestPeerUri
-                                        dialerState.callUri.value = Utils.friendlyUri(ctx, latestPeerUri, currentUa.account)
-                                    }
-                                }
-                            }
+                            callClick(ctx, viewModel, dialerState, false)
                         },
-                    contentAlignment = Alignment.Center
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color.Transparent
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.CallIcon,
-                        contentDescription = "Call",
-                        tint = MaterialTheme.colorScheme.onSecondary,
-                        modifier = Modifier.size(34.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(emeraldNeon, emeraldDeep)
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Call,
+                                contentDescription = stringResource(R.string.call),
+                                tint = Color.White,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.call),
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
                 }
 
-                Spacer(modifier = Modifier.width(32.dp))
-
                 // Video Call Button
-                Box(
+                Surface(
                     modifier = Modifier
-                        .size(64.dp)
-                        .background(MaterialTheme.colorScheme.secondary, shape = CircleShape)
-                        .clip(CircleShape)
+                        .weight(1f)
+                        .height(52.dp)
+                        .shadow(6.dp, RoundedCornerShape(18.dp), spotColor = Color(0xFF00B0FF))
+                        .clip(RoundedCornerShape(18.dp))
                         .clickable {
-                            if (dialerState.callUri.value.isNotEmpty()) {
-                                callClick(ctx, viewModel, dialerState, true)
-                            } else {
-                                val currentUa = UserAgent.ofAor(viewModel.selectedAor.value)
-                                if (currentUa != null) {
-                                    val latestPeerUri = CallHistoryNew.aorLatestPeerUri(currentUa.account.aor)
-                                    if (latestPeerUri != null) {
-                                        dialerState.redialUri = latestPeerUri
-                                        dialerState.callUri.value = Utils.friendlyUri(ctx, latestPeerUri, currentUa.account)
-                                    }
-                                }
-                            }
+                            callClick(ctx, viewModel, dialerState, true)
                         },
-                    contentAlignment = Alignment.Center
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color.Transparent
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Videocam,
-                        contentDescription = "Video Call",
-                        tint = MaterialTheme.colorScheme.onSecondary,
-                        modifier = Modifier.size(34.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(Color(0xFF00B0FF), Color(0xFF0080FF))
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Videocam,
+                                contentDescription = stringResource(R.string.video_call),
+                                tint = Color.White,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.video_call),
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun NewKeypadButton(text: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(64.dp)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
-            .clip(CircleShape)
-            .clickable { onClick() },
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = text,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Normal,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center
-        )
     }
 }
 
@@ -1148,16 +1241,32 @@ private fun MainContent(navController: NavController, viewModel: ViewModel, cont
 
         AccountSpinner(ctx, viewModel, navController)
 
+        // Active Calls Banners (if any ongoing / minimized calls exist)
+        val activeCallsList = if (aorCalls.isNotEmpty()) aorCalls else calls
+        if (activeCallsList.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                activeCallsList.forEach { call ->
+                    key(call.callp) {
+                        ActiveCallBanner(ctx, call, navController, viewModel)
+                    }
+                }
+            }
+        }
+
         val showEmptyCard = if (ua?.account?.isMobile == true)
             aorCalls.isEmpty()
         else
             !hasActiveCalls || conferenceCall
 
         if (showEmptyCard && isDialpadVisible) {
-            Spacer(modifier = Modifier.height(24.dp))
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(16.dp))
             NewDialerCard(ctx = ctx, viewModel = viewModel, dialerState = viewModel.dialerState)
-            Spacer(modifier = Modifier.height(8.dp))
         }
 
         Indicator(
@@ -1177,6 +1286,8 @@ private fun AccountSpinner(ctx: Context, viewModel: ViewModel, navController: Na
     val accountUpdate by viewModel.accountUpdate.collectAsState()
     val uasValue by uas
 
+    val isDark = isSystemInDarkTheme() || BaresipService.darkTheme.value
+
     LaunchedEffect(uasValue, selected, accountUpdate) {
         val currentSelected = viewModel.selectedAor.value
         if (uas.value.isEmpty()) {
@@ -1190,149 +1301,235 @@ private fun AccountSpinner(ctx: Context, viewModel: ViewModel, navController: Na
     }
 
     if (selected == "") {
-        OutlinedButton(
-            onClick = { navController.navigate("accounts") },
+        Surface(
             modifier = Modifier
+                .fillMaxWidth()
                 .padding(horizontal = 4.dp, vertical = 4.dp)
-                .height(44.dp)
-                .width(260.dp),
-            colors = ButtonColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-            ),
+                .height(56.dp)
+                .shadow(4.dp, RoundedCornerShape(22.dp))
+                .clip(RoundedCornerShape(22.dp))
+                .clickable { navController.navigate("accounts") },
             shape = RoundedCornerShape(22.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp)
+            color = if (isDark) Color(0xFF131B2E) else Color(0xFFFFFFFF),
+            border = BorderStroke(1.dp, if (isDark) Color.White.copy(alpha = 0.12f) else Color(0xFFE2E8F0))
         ) {
-            Text(text = stringResource(R.string.accounts), fontWeight = FontWeight.Bold)
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 18.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.AccountCircle,
+                    contentDescription = null,
+                    tint = Color(0xFF00B0FF),
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = stringResource(R.string.accounts),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isDark) Color.White else Color(0xFF0F172A)
+                )
+            }
         }
     }
-    else
-        OutlinedButton(
-            onClick = { expanded = !expanded },
-            enabled = true,
-            modifier = Modifier
-                .padding(horizontal = 4.dp, vertical = 4.dp)
-                .height(44.dp)
-                .width(260.dp)
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onPress = { expanded = true },
-                        onLongPress = {
-                            val currentUa = UserAgent.ofAor(selected)
-                            if (currentUa != null) {
-                                val acc = currentUa.account
-                                if (!acc.isMobile) {
-                                    if (Api.account_regint(acc.accp) > 0) {
-                                        Api.account_set_regint(acc.accp, 0)
-                                        Api.ua_unregister(currentUa.uap)
-                                    }
-                                    else {
-                                        Api.account_set_regint(acc.accp, acc.configuredRegInt)
-                                        Api.ua_register(currentUa.uap)
-                                    }
-                                    acc.regint = Api.account_regint(acc.accp)
-                                    Account.saveAccounts()
-                                }
-                            }
-                        }
-                    )
-                },
-            colors = ButtonColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                disabledContentColor = MaterialTheme.colorScheme.onSurface
-            ),
-            shape = RoundedCornerShape(25.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-        ) {
-            Icon(
-                imageVector = ImageVector.vectorResource(
-                    uasStatus.value[selected] ?: R.drawable.circle_yellow
-                ),
-                contentDescription = null,
-                tint = Color.Unspecified,
+    else {
+        val currentUa = UserAgent.ofAor(selected)
+        val acc = currentUa?.account
+        val displayName = acc?.nickName?.ifEmpty { null }
+            ?: acc?.displayName?.ifEmpty { null }
+            ?: acc?.text()
+            ?: selected
+        val serverHost = acc?.aor?.substringAfter("@")?.ifEmpty { null } ?: "SIP Account"
+
+        val statusDrawable = uasStatus.value[selected] ?: R.drawable.circle_yellow
+        val (statusColor, statusLabel) = when (statusDrawable) {
+            R.drawable.circle_green -> Pair(Color(0xFF00E676), "Online")
+            R.drawable.circle_red -> Pair(Color(0xFFFF3B30), "Offline")
+            else -> Pair(Color(0xFFF9A825), "Connecting...")
+        }
+
+        Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp)) {
+            Card(
                 modifier = Modifier
-                    .padding(end = 10.dp)
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .clickable(onClick = {
-                        navController.navigate("account/${Uri.encode(selected)}/old")
-                    })
-            )
-            Text(
-                text = Account.ofAor(selected)?.text() ?: "",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                overflow = TextOverflow.Ellipsis,
-                maxLines = 1,
-                modifier = Modifier
-                    .weight(1f)
+                    .fillMaxWidth()
+                    .shadow(4.dp, RoundedCornerShape(22.dp))
                     .combinedClickable(
                         onClick = { expanded = true },
                         onLongClick = {
-                            val currentUa = UserAgent.ofAor(selected)
-                            if (currentUa != null) {
-                                val acc = currentUa.account
-                                if (!acc.isMobile) {
-                                    if (Api.account_regint(acc.accp) > 0) {
-                                        Api.account_set_regint(acc.accp, 0)
-                                        Api.ua_unregister(currentUa.uap)
-                                    }
-                                    else {
-                                        Api.account_set_regint(
-                                            acc.accp,
-                                            acc.configuredRegInt
-                                        )
-                                        Api.ua_register(currentUa.uap)
-                                    }
-                                    acc.regint = Api.account_regint(acc.accp)
-                                    Account.saveAccounts()
+                            if (currentUa != null && acc != null && !acc.isMobile) {
+                                if (Api.account_regint(acc.accp) > 0) {
+                                    Api.account_set_regint(acc.accp, 0)
+                                    Api.ua_unregister(currentUa.uap)
+                                } else {
+                                    Api.account_set_regint(acc.accp, acc.configuredRegInt)
+                                    Api.ua_register(currentUa.uap)
                                 }
+                                acc.regint = Api.account_regint(acc.accp)
+                                Account.saveAccounts()
                             }
                         }
-                    )
-            )
-            Icon(
-                imageVector = if (expanded)
-                    Icons.Filled.KeyboardArrowUp
-                else
-                    Icons.Filled.KeyboardArrowDown,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp)
-            )
+                    ),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isDark) Color(0xFF131B2E) else Color(0xFFFFFFFF)
+                ),
+                border = BorderStroke(1.dp, if (isDark) Color.White.copy(alpha = 0.12f) else Color(0xFFE2E8F0))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Glowing Status Badge (Clickable to open account settings)
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .background(statusColor.copy(alpha = if (isDark) 0.18f else 0.12f), CircleShape)
+                            .clip(CircleShape)
+                            .clickable {
+                                navController.navigate("account/${Uri.encode(selected)}/old")
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(12.dp)
+                                .background(statusColor, CircleShape)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    // Account Name & Details
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = displayName,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDark) Color.White else Color(0xFF0F172A),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = serverHost,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Normal,
+                                color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            Text(
+                                text = " • $statusLabel",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = statusColor
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Trailing Switcher Chevron Button
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(
+                                if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.05f),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                            contentDescription = "Switch Account",
+                            tint = if (isDark) Color.White.copy(alpha = 0.8f) else Color(0xFF475569),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+
+            // Dropdown Menu for Account Switching
             androidx.compose.material3.DropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                modifier = Modifier.widthIn(min = 260.dp, max = 340.dp),
+                shape = RoundedCornerShape(18.dp),
+                containerColor = if (isDark) Color(0xFF1E293B) else Color(0xFFFFFFFF),
+                border = BorderStroke(
+                    1.dp,
+                    if (isDark) Color.White.copy(alpha = 0.12f) else Color(0xFFE2E8F0)
+                ),
+                shadowElevation = 6.dp
             ) {
-                uas.value.forEachIndexed { index, currentUa ->
-                    val acc = currentUa.account
+                uas.value.forEachIndexed { index, currentItemUa ->
+                    val itemAcc = currentItemUa.account
+                    val isCurrent = itemAcc.aor == selected
+                    val itemStatusDrawable = uasStatus.value[itemAcc.aor] ?: R.drawable.circle_yellow
+                    val itemStatusColor = when (itemStatusDrawable) {
+                        R.drawable.circle_green -> Color(0xFF00E676)
+                        R.drawable.circle_red -> Color(0xFFFF3B30)
+                        else -> Color(0xFFF9A825)
+                    }
+                    val itemName = itemAcc.nickName.ifEmpty { null }
+                        ?: itemAcc.displayName.ifEmpty { null }
+                        ?: itemAcc.text()
+
                     DropdownMenuItem(
                         onClick = {
                             expanded = false
-                            spinToAor(viewModel, acc.aor)
+                            spinToAor(viewModel, itemAcc.aor)
                         },
                         text = {
-                            Text(text = acc.text(), fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                            Column {
+                                Text(
+                                    text = itemName,
+                                    fontSize = 15.sp,
+                                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isDark) Color.White else Color(0xFF0F172A)
+                                )
+                                Text(
+                                    text = itemAcc.aor.substringAfter("@"),
+                                    fontSize = 12.sp,
+                                    color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+                                )
+                            }
                         },
                         leadingIcon = {
-                            Icon(
-                                imageVector = ImageVector.vectorResource(uasStatus.value[acc.aor]!!),
-                                contentDescription = null,
-                                tint = Color.Unspecified,
-                                modifier = Modifier.size(24.dp)
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .background(itemStatusColor, CircleShape)
                             )
+                        },
+                        trailingIcon = {
+                            if (isCurrent) {
+                                Icon(
+                                    imageVector = Icons.Filled.Check,
+                                    contentDescription = "Active",
+                                    tint = Color(0xFF00B0FF),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     )
-                    if (index < uas.value.size - 1)
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    if (index < uas.value.size - 1) {
+                        HorizontalDivider(
+                            color = if (isDark) Color.White.copy(alpha = 0.08f) else Color(0xFFF1F5F9),
+                            modifier = Modifier.padding(horizontal = 12.dp)
+                        )
+                    }
                 }
             }
         }
+    }
 }
 
 @Composable
@@ -1778,7 +1975,7 @@ enum class Video { NONE, ON, PENDING, OFF }
 private fun videoClick(ctx: Context, call: Call) {
     if (call.videoIcon.value == Video.PENDING) {
         val newDir = if (call.hasVideo())
-            Api.SDP_INACTIVE
+            Api.SDP_RECVONLY
         else
             Api.SDP_SENDRECV
         call.setVideoDirection(newDir)
@@ -1799,146 +1996,10 @@ fun VideoLayout(ctx: Context, viewModel: ViewModel, onCloseVideo: () -> Unit) {
     val selectedAor by viewModel.selectedAor.collectAsState()
     val ua = uas.value.find { it.account.aor == selectedAor }
     val call = ua?.currentCall()
-
-    var isFrontCamera by remember {
-        mutableStateOf(true)
-    }
-
-    val isSpeakerOn by viewModel.isSpeakerOn.collectAsState()
-    var isMicMuted by remember { mutableStateOf(BaresipService.isMicMuted) }
-
-    LaunchedEffect(isFrontCamera) {
-        if (call != null) {
-            call.setVideoSource(isFrontCamera)
-        }
-    }
-
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        AndroidView(
-            modifier = Modifier.fillMaxSize(),
-            factory = { context ->
-                val videoView = VideoView(context)
-                videoView.surfaceView.apply {
-                    setZOrderMediaOverlay(true)
-                }
-                videoView.surfaceView
-            }
-        )
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = {
-                    val targetUiState = !isFrontCamera
-                    isFrontCamera = targetUiState
-                    call?.setVideoSource(targetUiState)
-                },
-                modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                    .size(48.dp)
-            ) {
-                Icon(
-                    imageVector = if (isFrontCamera)
-                        Icons.Filled.VideoCameraFront
-                    else
-                        Icons.Filled.VideoCameraBack,
-                    contentDescription = "Switch Camera",
-                    tint = Color.White
-                )
-            }
-        }
-
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(bottom = 24.dp)
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = {
-                    call?.setVideoDirection(Api.SDP_INACTIVE)
-                    onCloseVideo()
-                },
-                modifier = Modifier
-                    .background(Color.Red.copy(alpha = 0.8f), CircleShape)
-                    .size(56.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.VideocamOff,
-                    contentDescription = "Turn Video Off",
-                    tint = Color.White
-                )
-            }
-
-            IconButton(
-                onClick = {
-                    val newSpeakerState = !isSpeakerOn
-                    BaresipService.speakerPhone = newSpeakerState
-                    viewModel.updateSpeakerPhoneStatus(newSpeakerState)
-                },
-                modifier = Modifier
-                    .background(
-                        if (isSpeakerOn) MaterialTheme.colorScheme.primary else Color.Black.copy(alpha = 0.5f),
-                        CircleShape
-                    )
-                    .size(56.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.SpeakerPhone,
-                    contentDescription = "Speaker",
-                    tint = Color.White
-                )
-            }
-
-            IconButton(
-                onClick = {
-                    val targetMute = !isMicMuted
-                    isMicMuted = targetMute
-                    BaresipService.isMicMuted = targetMute
-                    if (targetMute)
-                        viewModel.updateMicIcon(Icons.Filled.MicOff)
-                    else
-                        viewModel.updateMicIcon(Icons.Filled.Mic)
-                },
-                modifier = Modifier
-                    .background(
-                        if (isMicMuted) Color.Red else Color.Black.copy(alpha = 0.5f),
-                        CircleShape
-                    )
-                    .size(56.dp)
-            ) {
-                Icon(
-                    imageVector = if (isMicMuted) Icons.Filled.MicOff else Icons.Filled.Mic,
-                    contentDescription = "Mute Microphone",
-                    tint = Color.White
-                )
-            }
-
-            IconButton(
-                onClick = {
-                    call?.hangup(487, "Request Terminated")
-                    onCloseVideo()
-                },
-                modifier = Modifier
-                    .background(Color.Red, CircleShape)
-                    .size(56.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.CallEnd,
-                    contentDescription = "End Call",
-                    tint = Color.White
-                )
-            }
-        }
+    if (call != null) {
+        VideoCallScreen(ctx = ctx, viewModel = viewModel, call = call, onCloseVideo = onCloseVideo)
+    } else {
+        onCloseVideo()
     }
 }
 
@@ -2331,18 +2392,21 @@ fun handleServiceEvent(ctx: Context, viewModel: ViewModel, event: String, params
         "call rejected" -> {}
         "call outgoing" -> {
             val callp = params[1] as Long
+            val call = Call.ofCallp(callp)
+            spinToAor(viewModel, aor, call)
             viewModel.navigateToCall()
-            spinToAor(viewModel, aor, Call.ofCallp(callp))
         }
         "call incoming" -> {
             val callp = params[1] as Long
+            val call = Call.ofCallp(callp)
+            spinToAor(viewModel, aor, call)
             viewModel.navigateToCall()
-            spinToAor(viewModel, aor, Call.ofCallp(callp))
         }
         "call answered" -> {
             val callp = params[1] as Long
+            val call = Call.ofCallp(callp)
+            spinToAor(viewModel, aor, call)
             viewModel.navigateToCall()
-            spinToAor(viewModel, aor, Call.ofCallp(callp))
         }
         "call redirect" -> {
             val redirectUri = ev[1]

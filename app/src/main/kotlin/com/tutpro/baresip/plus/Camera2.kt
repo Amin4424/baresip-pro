@@ -52,25 +52,64 @@ class Camera2(
         Log.d("Camera2", "stopBackground")
     }
 
+    private var lastPreviewSurface: Surface? = null
+    private var lastFacing: Int = 0
+
+    fun muteCamera(mute: Boolean) {
+        Log.d(TAG, "muteCamera($mute), currently isRunning=$isRunning")
+        try {
+            setMute(userData, mute)
+        } catch (_: Exception) {}
+    }
+
     @RequiresPermission(Manifest.permission.CAMERA)
     @Suppress("unused")
     fun startCamera(previewSurface: Surface?, facing: Int) {
+        this.lastPreviewSurface = previewSurface
+        this.lastFacing = facing
         this.previewSurface = previewSurface
         isFrontFacing = (facing == CameraCharacteristics.LENS_FACING_FRONT)
         startBackground()
-        imageReader = ImageReader.newInstance(w, h, ImageFormat.YUV_420_888, 3).apply {
-            setOnImageAvailableListener(imageAvailListener, bgHandler)
+        val width = if (w > 0) w else (BaresipService.videoSize.width.takeIf { it > 0 } ?: 640)
+        val height = if (h > 0) h else (BaresipService.videoSize.height.takeIf { it > 0 } ?: 480)
+        try {
+            imageReader = ImageReader.newInstance(width, height, ImageFormat.YUV_420_888, 3).apply {
+                setOnImageAvailableListener(imageAvailListener, bgHandler)
+            }
+        } catch (e: Exception) {
+            Log.e("Camera2", "Failed to create ImageReader: ${e.message}")
+            return
         }
         isRunning = true
         try {
-            val cameraId = getCameraId(facing)
-            cameraId?.let  { id ->
-                val characteristics = cameraManager?.getCameraCharacteristics(id)
-                sensorOrientation = characteristics?.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 0
-                cameraManager?.openCamera(id, camStateCallback, bgHandler)
+            val cameraId = getCameraId(facing) ?: cameraManager?.cameraIdList?.firstOrNull()
+            if (cameraId == null) {
+                Log.e(TAG, "No camera found for facing $facing")
+                return
             }
-        } catch (e: CameraAccessException) {
+            Log.d(TAG, "Starting camera id=$cameraId facing=$facing")
+            val characteristics = cameraManager?.getCameraCharacteristics(cameraId)
+            sensorOrientation = characteristics?.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 0
+            currentInstance = this
+            try {
+                setMute(userData, isCameraMuted)
+            } catch (_: Exception) {}
+            cameraManager?.openCamera(cameraId, camStateCallback, bgHandler)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to open camera: ${e.message}")
             e.printStackTrace()
+            bgHandler?.postDelayed({
+                if (isRunning && cameraDevice == null) {
+                    try {
+                        val retryId = getCameraId(facing) ?: cameraManager?.cameraIdList?.firstOrNull()
+                        if (retryId != null) {
+                            cameraManager?.openCamera(retryId, camStateCallback, bgHandler)
+                        }
+                    } catch (ex: Exception) {
+                        Log.e(TAG, "Retry openCamera failed: ${ex.message}")
+                    }
+                }
+            }, 300)
         }
 
         if (orientationListener == null && appContext != null) {
@@ -106,10 +145,17 @@ class Camera2(
 
     @Suppress("unused")
     fun stopCamera() {
-        Log.d("Camera2", "stopCamera")
+        Log.d(TAG, "stopCamera")
         if (!isRunning) return
         isRunning = false
+        if (currentInstance == this) {
+            currentInstance = null
+        }
         orientationListener?.disable()
+        try {
+            captureSession?.stopRepeating()
+            captureSession?.abortCaptures()
+        } catch (_: Exception) {}
         captureSession?.close()
         captureSession = null
         cameraDevice?.close()
@@ -139,12 +185,12 @@ class Camera2(
             plane2?.let { planes[2].rowStride } ?: 0,
             plane2?.let { planes[2].pixelStride } ?: 0
         )
-
         image.close()
     }
 
-    private val camStateCallback = object : CameraDevice.StateCallback() {
+    private val camStateCallback: CameraDevice.StateCallback = object : CameraDevice.StateCallback() {
         override fun onOpened(camera: CameraDevice) {
+            Log.d(TAG, "Camera ${camera.id} onOpened")
             cameraDevice = camera
 
             try {
@@ -161,7 +207,11 @@ class Camera2(
                     targets.add(it)
                 }
 
-                builder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, Range(fps, fps))
+                try {
+                    builder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, Range(fps, fps))
+                } catch (e: Exception) {
+                    Log.w(TAG, "Could not set AE target fps $fps: ${e.message}")
+                }
 
                 val outputConfigs = targets.map { OutputConfiguration(it) }
                 val executor = Executor { command -> bgHandler?.post(command) }
@@ -171,42 +221,67 @@ class Camera2(
                     executor,
                     object : CameraCaptureSession.StateCallback() {
                         override fun onConfigured(session: CameraCaptureSession) {
+                            Log.d(TAG, "CaptureSession onConfigured for camera ${camera.id}")
                             captureSession = session
                             try {
                                 session.setRepeatingRequest(builder.build(), null, bgHandler)
                             } catch (e: CameraAccessException) {
+                                Log.e(TAG, "setRepeatingRequest failed: ${e.message}")
                                 e.printStackTrace()
                             }
                         }
                         override fun onConfigureFailed(session: CameraCaptureSession) {
-                            // You can add callbacks or logs
+                            Log.e(TAG, "CaptureSession onConfigureFailed for camera ${camera.id}")
                         }
                     }
                 )
 
                 camera.createCaptureSession(sessionConfig)
 
-            } catch (e: CameraAccessException) {
-                Log.e(TAG, "CameraAccessException: ${e.message}")
-                e.printStackTrace()
-            } catch (e: IllegalStateException) {
-                Log.e(TAG, "IllegalStateException: ${e.message}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in onOpened: ${e.message}")
                 e.printStackTrace()
             }
-
         }
 
         override fun onDisconnected(camera: CameraDevice) {
+            Log.d(TAG, "Camera ${camera.id} onDisconnected")
             camera.close()
+            if (cameraDevice == camera) {
+                cameraDevice = null
+            }
         }
 
         override fun onError(camera: CameraDevice, error: Int) {
-            camera.close()
+            Log.e(TAG, "CameraDevice ${camera.id} onError code=$error")
+            try {
+                camera.close()
+            } catch (_: Exception) {}
+            if (cameraDevice == camera) {
+                cameraDevice = null
+            }
+            if (isRunning && (error == ERROR_CAMERA_IN_USE || error == ERROR_MAX_CAMERAS_IN_USE || error == ERROR_CAMERA_DEVICE)) {
+                Log.w(TAG, "Camera in use or error $error, retrying openCamera in 250ms...")
+                bgHandler?.postDelayed({
+                    if (isRunning && cameraDevice == null) {
+                        try {
+                            val retryId = getCameraId(lastFacing) ?: cameraManager?.cameraIdList?.firstOrNull()
+                            if (retryId != null) {
+                                cameraManager?.openCamera(retryId, this, bgHandler)
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Retry openCamera failed: ${e.message}")
+                        }
+                    }
+                }, 250)
+            }
         }
 
         override fun onClosed(camera: CameraDevice) {
-            Log.d("Camera2", "onClosed")
-            stopBackground()
+            Log.d(TAG, "CameraDevice ${camera.id} onClosed")
+            if (!isRunning) {
+                stopBackground()
+            }
         }
     }
 
@@ -221,9 +296,19 @@ class Camera2(
     @Suppress("KotlinJniMissingFunction")
     external fun setRotation(userData: Long, degrees: Int)
 
+    @Suppress("KotlinJniMissingFunction")
+    external fun setMute(userData: Long, muted: Boolean)
+
     companion object {
         private var cameraManager: CameraManager? = null
         private var appContext: Context? = null
+        private var currentInstance: Camera2? = null
+
+        var isCameraMuted: Boolean = false
+            set(value) {
+                field = value
+                currentInstance?.muteCamera(value)
+            }
 
         @JvmStatic
         fun setCameraManager(cm: CameraManager) {

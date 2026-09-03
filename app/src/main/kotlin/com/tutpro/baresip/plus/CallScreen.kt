@@ -12,8 +12,12 @@ import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +45,7 @@ import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.BottomSheetDefaults
@@ -112,7 +117,7 @@ private fun CallScreen(navController: NavController, viewModel: ViewModel) {
     val calls by viewModel.calls.collectAsState()
 
     // Active call resolution
-    val call = ua?.currentCall() ?: focusedCall ?: calls.lastOrNull()
+    val call = ua?.currentCall() ?: focusedCall ?: calls.lastOrNull() ?: BaresipService.calls.lastOrNull()
     val status = call?.status?.value ?: "idle"
 
     val isSpeakerOn by viewModel.isSpeakerOn.collectAsState()
@@ -124,7 +129,27 @@ private fun CallScreen(navController: NavController, viewModel: ViewModel) {
     var showTransferDialog by remember { mutableStateOf(false) }
     var showInfoDialog by remember { mutableStateOf(false) }
     var showSecurityDialog by remember { mutableStateOf(false) }
-    var showVideoLayout by remember { mutableStateOf(false) }
+    val isConnected = status == "connected" || status == "transferring"
+    val isIncoming = status == "incoming"
+    val isOutgoing = status == "outgoing" || status == "calling" || status == "ringing"
+    val isHold = call?.onhold == true || (call?.callOnHold?.value == true && call?.showOnHoldNotice?.value != true)
+    val isHeldByPeer = (call?.showOnHoldNotice?.value == true || call?.held == true) && call?.onhold != true
+    val isOnHold = isHold || isHeldByPeer || call?.callOnHold?.value == true
+    val isCalling = status == "calling"
+    val isRinging = status == "ringing"
+    val isIncomingVideo = isIncoming && (call?.hasVideo() == true || call?.videoCall == true)
+    val isVideoCall = call?.videoCall == true || call?.hasVideo() == true
+
+    var userClosedVideo by remember(call?.callp) { mutableStateOf(false) }
+    var showVideoLayout by remember(call?.callp) { mutableStateOf(isVideoCall) }
+    var isAnsweringVideo by remember(call?.callp) { mutableStateOf(false) }
+    var isCameraMuted by remember { mutableStateOf(Camera2.isCameraMuted) }
+
+    LaunchedEffect(isConnected, status, call?.hasVideo(), call?.videoCall) {
+        if ((isConnected || status == "answered") && (call?.hasVideo() == true || call?.videoCall == true)) {
+            showVideoLayout = true
+        }
+    }
 
     LaunchedEffect(micIcon) {
         isMicMuted = micIcon == Icons.Filled.MicOff || BaresipService.isMicMuted
@@ -139,10 +164,10 @@ private fun CallScreen(navController: NavController, viewModel: ViewModel) {
         }
     }
 
-    // Auto-return to main if no calls are active
-    LaunchedEffect(calls) {
-        if (calls.isEmpty()) {
-            Log.d(CALL_SCREEN_TAG, "No active calls, returning to main")
+    // Auto-return to main if call is terminated or no calls are active
+    LaunchedEffect(call?.terminated?.value, call?.rejected, calls.size, status) {
+        if (call == null || call.terminated.value || call.rejected || calls.isEmpty() || status == "disconnected" || status == "idle") {
+            Log.d(CALL_SCREEN_TAG, "Call terminated or no active calls, returning to main")
             navController.navigate("main") {
                 popUpTo("main") { inclusive = true }
             }
@@ -156,27 +181,144 @@ private fun CallScreen(navController: NavController, viewModel: ViewModel) {
         }
     }
 
-    val isConnected = status == "connected" || status == "transferring"
-    val isIncoming = status == "incoming"
-    val isOutgoing = status == "outgoing" || status == "calling" || status == "ringing" || status == "answered"
-    val isOnHold = call?.callOnHold?.value == true || call?.showOnHoldNotice?.value == true
-    val isHold = call?.callOnHold?.value == true
-    val isHeldByPeer = call?.showOnHoldNotice?.value == true
-    val isCalling = status == "calling"
-    val isRinging = status == "ringing"
-
     val greenColor = Color(0xFF2ABB86)
     val redColor = Color(0xFFEA4335)
     val accentGreen = Color(0xFF00C853)
     val yellowColor = Color(0xFFF9A825)
+
+    val isDark = isSystemInDarkTheme() || BaresipService.darkTheme.value
+
+    val bgGradientColors = if (isDark) {
+        listOf(Color(0xFF070B14), Color(0xFF0D1527), Color(0xFF060910))
+    } else {
+        listOf(Color(0xFFFFFFFF), Color(0xFFF1F5F9), Color(0xFFE2E8F0))
+    }
+    val titleTextColor = if (isDark) Color.White else Color(0xFF0F172A)
+    val subtitleTextColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+
+    val iconButtonBg = if (isDark) Color.White.copy(alpha = 0.10f) else Color.Black.copy(alpha = 0.05f)
+    val iconButtonTint = if (isDark) Color.White else Color(0xFF0F172A)
+
+    val statusBadgeBg = if (isDark) Color.White.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.85f)
+    val statusBadgeBorder = BorderStroke(1.dp, if (isOnHold) yellowColor.copy(alpha = 0.5f) else accentGreen.copy(alpha = 0.5f))
+
+    val avatarSurfaceBg = if (isDark) Color(0xFF1E293B) else Color(0xFFFFFFFF)
+    val numberBadgeBg = if (isDark) Color.White.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.85f)
+    val numberBadgeBorder = BorderStroke(1.dp, if (isDark) Color.White.copy(alpha = 0.12f) else Color(0xFFE2E8F0))
 
     // Resolve Contact for Avatar & Name
     val contact = remember(call?.peerUri) {
         if (call != null) Contact.findContact(call.peerUri) else null
     }
 
-    if (showVideoLayout && call != null) {
-        VideoLayout(ctx = ctx, viewModel = viewModel, onCloseVideo = { showVideoLayout = false })
+    // Guard: If there is no call, or the call has been terminated/rejected/disconnected, do not render any in-call UI!
+    val isTerminated = call == null || call.terminated.value || call.rejected || status == "disconnected" || status == "idle"
+    if (isTerminated) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(if (isDark) Color(0xFF070B14) else Color(0xFFFFFFFF))
+        )
+        return
+    }
+
+    // 1. Direct Video Screen: launch immediately if connected, answered, or answering with video!
+    val shouldShowVideo = (showVideoLayout || isVideoCall || isAnsweringVideo) && !userClosedVideo
+    if ((isConnected || status == "answered" || isAnsweringVideo) && shouldShowVideo) {
+        VideoCallScreen(
+            ctx = ctx,
+            viewModel = viewModel,
+            call = call,
+            onCloseVideo = {
+                userClosedVideo = true
+                showVideoLayout = false
+                isAnsweringVideo = false
+            },
+            onHangup = {
+                call.terminated.value = true
+                call.hangup(0, "")
+                navController.navigate("main") {
+                    popUpTo("main") { inclusive = true }
+                }
+            }
+        )
+        return
+    }
+
+    // 2. Incoming Call Screen: luxury full-screen experience
+    if (isIncoming && !isAnsweringVideo) {
+        IncomingCallScreen(
+            ctx = ctx,
+            call = call,
+            contact = contact,
+            isVideoCall = isIncomingVideo,
+            onAnswerVideo = { cameraOn ->
+                isCameraMuted = !cameraOn
+                Camera2.isCameraMuted = !cameraOn
+                isAnsweringVideo = true
+                showVideoLayout = true
+                call.videoCall = true
+                answerCall(ctx, call, video = true)
+            },
+            onAnswerAudio = { answerCall(ctx, call, video = false) },
+            onDecline = {
+                call.terminated.value = true
+                rejectCall(call)
+                navController.navigate("main") {
+                    popUpTo("main") { inclusive = true }
+                }
+            }
+        )
+        return
+    }
+
+    // 3. Outgoing Call Screen: luxury full-screen experience
+    if (isOutgoing && !isConnected) {
+        OutgoingCallScreen(
+            ctx = ctx,
+            call = call,
+            contact = contact,
+            status = status,
+            isVideoCall = isVideoCall,
+            isMicMuted = isMicMuted,
+            isSpeakerOn = isSpeakerOn,
+            isRecording = isRecording,
+            isMobileAccount = ua?.account?.isMobile ?: false,
+            isCameraMuted = isCameraMuted,
+            onToggleCamera = {
+                val targetMuted = !isCameraMuted
+                isCameraMuted = targetMuted
+                Camera2.isCameraMuted = targetMuted
+            },
+            onToggleMute = {
+                val newMute = !BaresipService.isMicMuted
+                BaresipService.setMicMute(newMute)
+                if (newMute) viewModel.updateMicIcon(Icons.Filled.MicOff) else viewModel.updateMicIcon(Icons.Filled.Mic)
+                isMicMuted = newMute
+            },
+            onToggleSpeaker = {
+                BaresipService.instance?.toggleSpeakerphone()
+            },
+            onToggleRecord = {
+                val nextRec = !BaresipService.isRecOn
+                BaresipService.isRecOn = nextRec
+                if (nextRec) {
+                    Api.module_load("sndfile")
+                    Toast.makeText(ctx, ctx.getString(R.string.recording_started), Toast.LENGTH_SHORT).show()
+                } else {
+                    Api.module_unload("sndfile")
+                    Toast.makeText(ctx, ctx.getString(R.string.recording_stopped), Toast.LENGTH_SHORT).show()
+                }
+                isRecording = nextRec
+            },
+            onHangup = {
+                call.terminated.value = true
+                call.hangup(0, "")
+                navController.navigate("main") {
+                    popUpTo("main") { inclusive = true }
+                }
+            }
+        )
         return
     }
 
@@ -185,132 +327,138 @@ private fun CallScreen(navController: NavController, viewModel: ViewModel) {
             .fillMaxSize()
             .statusBarsPadding()
             .navigationBarsPadding(),
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = if (isDark) Color(0xFF070B14) else Color(0xFFFFFFFF)
     ) { padding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(Brush.verticalGradient(colors = bgGradientColors))
                 .padding(padding)
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Top Navigation & Security Header
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+            // Ambient glowing aura in center
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp)
-            ) {
-                // Minimize Call Screen Button
-                IconButton(
-                    onClick = {
-                        navController.navigate("main") {
-                            popUpTo("main") { inclusive = true }
-                        }
-                    },
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.KeyboardArrowDown,
-                        contentDescription = "Minimize",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(28.dp)
+                    .size(340.dp)
+                    .align(Alignment.Center)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFF00B0FF).copy(alpha = if (isDark) 0.12f else 0.10f),
+                                Color.Transparent
+                            )
+                        ),
+                        shape = CircleShape
                     )
-                }
+            )
 
-                // Center Status Badge & Text
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    val statusText = when {
-                        isOnHold -> stringResource(R.string.call_is_on_hold)
-                        isIncoming -> stringResource(R.string.incoming_call)
-                        isCalling -> stringResource(R.string.calling)
-                        isRinging -> stringResource(R.string.ringing)
-                        isConnected -> stringResource(R.string.connected)
-                        else -> stringResource(R.string.call)
-                    }
-
-                    val statusColor = when {
-                        isOnHold -> yellowColor
-                        isIncoming -> greenColor
-                        isCalling -> yellowColor
-                        isRinging -> greenColor
-                        isConnected -> accentGreen
-                        else -> MaterialTheme.colorScheme.primary
-                    }
-
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Top Navigation & Security Header
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp)
+                ) {
+                    // Minimize Call Screen Button
                     Box(
                         modifier = Modifier
-                            .size(10.dp)
-                            .background(statusColor, CircleShape)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = statusText,
-                        color = statusColor,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-
-                    if (isRecording) {
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Surface(
-                            color = redColor.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(12.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, redColor.copy(alpha = 0.5f))
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(7.dp)
-                                        .background(redColor, CircleShape)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "REC",
-                                    color = redColor,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // ZRTP Security Lock Icon
-                if (call != null && call.securityIconTint.value != -1) {
-                    IconButton(
-                        onClick = { showSecurityDialog = true },
-                        modifier = Modifier.size(40.dp)
+                            .size(40.dp)
+                            .background(iconButtonBg, CircleShape)
+                            .clip(CircleShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = {
+                                    navController.navigate("main") {
+                                        popUpTo("main") { inclusive = true }
+                                    }
+                                }
+                            ),
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = if (call.securityIconTint.value == R.color.colorTrafficRed)
-                                Icons.Filled.LockOpen
-                            else
-                                Icons.Filled.Lock,
-                            contentDescription = "Security",
-                            tint = colorResource(call.securityIconTint.value),
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Minimize",
+                            tint = iconButtonTint,
                             modifier = Modifier.size(24.dp)
                         )
                     }
-                } else {
-                    Spacer(modifier = Modifier.size(40.dp))
+
+                    // Center Status Badge
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = statusBadgeBg,
+                        border = statusBadgeBorder
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(if (isOnHold) yellowColor else accentGreen, CircleShape)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (isOnHold) stringResource(R.string.on_hold).uppercase() else stringResource(R.string.connected).uppercase(),
+                                color = if (isOnHold) yellowColor else accentGreen,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
+                            )
+                        }
+                    }
+
+                    // ZRTP Security Lock Icon
+                    if (call != null && call.securityIconTint.value != -1) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(iconButtonBg, CircleShape)
+                                .clip(CircleShape)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = { showSecurityDialog = true }
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (call.securityIconTint.value == R.color.colorTrafficRed)
+                                    Icons.Filled.LockOpen
+                                else
+                                    Icons.Filled.Lock,
+                                contentDescription = "Security",
+                                tint = colorResource(call.securityIconTint.value),
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.size(40.dp))
+                    }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(28.dp))
 
-            // Contact Avatar Container
-            Box(contentAlignment = Alignment.BottomEnd) {
-                Surface(
-                    modifier = Modifier
-                        .size(130.dp)
-                        .shadow(4.dp, CircleShape),
+                // Contact Avatar Container with Gradient Border and Shadow
+                Box(contentAlignment = Alignment.BottomEnd) {
+                    Surface(
+                        modifier = Modifier
+                            .size(136.dp)
+                            .shadow(24.dp, CircleShape, spotColor = if (isDark) Color(0xFF00B0FF) else Color(0xFF00B0FF).copy(alpha = 0.35f)),
                     shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceVariant
+                    color = avatarSurfaceBg,
+                    border = BorderStroke(
+                        2.5.dp,
+                        Brush.linearGradient(listOf(Color(0xFF00B0FF), Color(0xFF38BDF8)))
+                    )
                 ) {
                     when (contact) {
                         is Contact.BaresipContact -> {
@@ -320,9 +468,7 @@ private fun CallScreen(navController: NavController, viewModel: ViewModel) {
                                     bitmap = avatarBitmap.asImageBitmap(),
                                     contentDescription = "Avatar",
                                     contentScale = ContentScale.Crop,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .clip(CircleShape)
+                                    modifier = Modifier.fillMaxSize()
                                 )
                             } else {
                                 Box(
@@ -347,9 +493,7 @@ private fun CallScreen(navController: NavController, viewModel: ViewModel) {
                                     model = thumbUri,
                                     contentDescription = "Avatar",
                                     contentScale = ContentScale.Crop,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .clip(CircleShape)
+                                    modifier = Modifier.fillMaxSize()
                                 )
                             } else {
                                 Box(
@@ -375,8 +519,8 @@ private fun CallScreen(navController: NavController, viewModel: ViewModel) {
                                 Icon(
                                     imageVector = Icons.Filled.Person,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                    modifier = Modifier.size(72.dp)
+                                    tint = Color(0xFF64748B),
+                                    modifier = Modifier.size(68.dp)
                                 )
                             }
                         }
@@ -387,7 +531,7 @@ private fun CallScreen(navController: NavController, viewModel: ViewModel) {
                 Box(
                     modifier = Modifier
                         .padding(4.dp)
-                        .size(28.dp)
+                        .size(32.dp)
                         .background(MaterialTheme.colorScheme.surface, CircleShape)
                         .padding(3.dp),
                     contentAlignment = Alignment.Center
@@ -396,10 +540,20 @@ private fun CallScreen(navController: NavController, viewModel: ViewModel) {
                         modifier = Modifier
                             .fillMaxSize()
                             .background(
-                                if (isConnected) accentGreen else if (isIncoming) greenColor else MaterialTheme.colorScheme.primary,
+                                if (isIncomingVideo) greenColor else if (isConnected) accentGreen else if (isIncoming) greenColor else MaterialTheme.colorScheme.primary,
                                 CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isIncomingVideo) {
+                            Icon(
+                                imageVector = Icons.Filled.Videocam,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
                             )
-                    )
+                        }
+                    }
                 }
             }
 
@@ -409,47 +563,53 @@ private fun CallScreen(navController: NavController, viewModel: ViewModel) {
             val callerName = if (call != null) Utils.friendlyUri(ctx, call.peerUri, call.ua.account) else stringResource(R.string.unknown)
             Text(
                 text = callerName,
-                fontSize = 24.sp,
+                fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
+                color = titleTextColor,
                 textAlign = TextAlign.Center
             )
             val peerNumber = call?.peerUri?.substringAfter(":") ?: ""
             if (peerNumber.isNotEmpty() && peerNumber != callerName) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = peerNumber,
-                    fontSize = 15.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = numberBadgeBg,
+                    border = numberBadgeBorder
+                ) {
+                    Text(
+                        text = peerNumber,
+                        fontSize = 14.sp,
+                        color = subtitleTextColor,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Live Call Duration Timer / Ringing Animation
-            if (call != null) {
-                if (isOutgoing && !isConnected) {
-                    var dots by remember { mutableStateOf(".") }
-                    LaunchedEffect(Unit) {
-                        while (true) {
-                            dots = when (dots) {
-                                "." -> ".."
-                                ".." -> "..."
-                                else -> "."
-                            }
-                            delay(500)
-                        }
+            // Live Call Duration Timer
+            if (call != null && isConnected) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = numberBadgeBg,
+                    border = BorderStroke(1.dp, accentGreen.copy(alpha = 0.5f))
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(accentGreen, CircleShape)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        CallTimerDisplay(
+                            initialDurationSeconds = call.duration().toLong(),
+                            textColor = titleTextColor
+                        )
                     }
-                    val label = if (isCalling) stringResource(R.string.calling) else stringResource(R.string.ringing)
-                    Text(
-                        text = "$label$dots",
-                        fontSize = 18.sp,
-                        color = if (isCalling) yellowColor else MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Medium
-                    )
-                } else if (isConnected) {
-                    CallTimerDisplay(initialDurationSeconds = call.duration().toLong())
                 }
             }
 
@@ -459,8 +619,10 @@ private fun CallScreen(navController: NavController, viewModel: ViewModel) {
             when {
                 isIncoming -> {
                     IncomingCallContent(
-                        onAnswer = { call?.let { answerCall(ctx, it) } },
-                        onDecline = { call?.let { rejectCall(it) } }
+                        isVideoCall = isIncomingVideo,
+                        onAnswer = { call?.let { answerCall(ctx, it, video = isIncomingVideo) } },
+                        onDecline = { call?.let { rejectCall(it) } },
+                        onAnswerAudioOnly = null
                     )
                 }
                 isOutgoing -> {
@@ -546,10 +708,10 @@ private fun CallScreen(navController: NavController, viewModel: ViewModel) {
                         },
                         onToggleHold = {
                             call?.let {
-                                if (it.callOnHold.value && !it.showOnHoldNotice.value) {
+                                if (it.onhold || (it.callOnHold.value && !it.held)) {
                                     Log.d(CALL_SCREEN_TAG, "User requested resume for ${it.callp}")
                                     it.resume()
-                                } else if (!it.callOnHold.value && !it.showOnHoldNotice.value) {
+                                } else if (!it.held && !it.showOnHoldNotice.value) {
                                     Log.d(CALL_SCREEN_TAG, "User requested hold for ${it.callp}")
                                     it.hold()
                                 }
@@ -558,14 +720,12 @@ private fun CallScreen(navController: NavController, viewModel: ViewModel) {
                         onToggleDialpad = {
                             showDialpad = true
                         },
-                        onToggleVideo = {
-                            call?.let { c ->
-                                val newDir = if (c.hasVideo()) Api.SDP_INACTIVE else Api.SDP_SENDRECV
-                                c.setVideoDirection(newDir)
-                                c.videoIcon.value = if (!c.hasVideo()) Video.ON else Video.OFF
-                                showVideoLayout = c.hasVideo()
+                        onToggleVideo = if (hasVideo) {
+                            {
+                                userClosedVideo = false
+                                showVideoLayout = true
                             }
-                        },
+                        } else null,
                         onTransfer = {
                             call?.let {
                                 if (it.onHoldCall != null) {
@@ -599,15 +759,26 @@ private fun CallScreen(navController: NavController, viewModel: ViewModel) {
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
+}
 
     // In-Call DTMF Dialpad Bottom Sheet
     if (showDialpad && !isHeldByPeer && call != null) {
         ModalBottomSheet(
             onDismissRequest = { showDialpad = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-            dragHandle = { BottomSheetDefaults.DragHandle() }
+            containerColor = if (isDark) Color(0xFF090E1A) else Color(0xFFFFFFFF),
+            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+            dragHandle = {
+                Box(
+                    modifier = Modifier
+                        .padding(top = 12.dp, bottom = 8.dp)
+                        .size(width = 44.dp, height = 4.dp)
+                        .background(
+                            if (isDark) Color.White.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.18f),
+                            RoundedCornerShape(2.dp)
+                        )
+                )
+            }
         ) {
             InCallDialpadSheet(
                 dtmfText = call.dtmfText.value,
@@ -648,12 +819,14 @@ private fun CallScreen(navController: NavController, viewModel: ViewModel) {
     }
 }
 
-private fun answerCall(ctx: Context, call: Call) {
-    Log.d(CALL_SCREEN_TAG, "AoR ${call.ua.account.aor} answering call ${call.callp}")
+private fun answerCall(ctx: Context, call: Call, video: Boolean = call.hasVideo()) {
+    Log.d(CALL_SCREEN_TAG, "AoR ${call.ua.account.aor} answering call ${call.callp} (video=$video)")
+    call.videoCall = video
     val intent = Intent(ctx, BaresipService::class.java)
     intent.action = "Call Answer"
     intent.putExtra("uap", call.ua.uap)
     intent.putExtra("callp", call.callp)
+    intent.putExtra("video", video)
     ContextCompat.startForegroundService(ctx, intent)
 }
 
@@ -663,7 +836,11 @@ private fun rejectCall(call: Call) {
 }
 
 @Composable
-private fun CallTimerDisplay(initialDurationSeconds: Long, modifier: Modifier = Modifier) {
+internal fun CallTimerDisplay(
+    initialDurationSeconds: Long,
+    modifier: Modifier = Modifier,
+    textColor: Color = Color.Unspecified
+) {
     val startTime = remember(initialDurationSeconds) {
         SystemClock.elapsedRealtime() - (initialDurationSeconds * 1000L)
     }
@@ -684,7 +861,7 @@ private fun CallTimerDisplay(initialDurationSeconds: Long, modifier: Modifier = 
         text = timeText,
         fontSize = 20.sp,
         fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.onBackground,
+        color = if (textColor != Color.Unspecified) textColor else Color.White,
         modifier = modifier
     )
 }
@@ -921,7 +1098,7 @@ private fun CallTransferDialog(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CallInfoDialog(
+internal fun CallInfoDialog(
     ctx: Context,
     call: Call,
     onDismiss: () -> Unit

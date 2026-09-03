@@ -16,7 +16,11 @@ open class Call(val callp: Long, val ua: UserAgent, val peerUri: String, val dir
     var held = false
     val terminated = mutableStateOf(false)
     var conferenceCall = false
-    var videoCall = false
+    val isVideoCallState: MutableState<Boolean> = mutableStateOf(false)
+    var videoCall: Boolean
+        get() = isVideoCallState.value
+        set(value) { isVideoCallState.value = value }
+    val remoteVideo: MutableState<Boolean> = mutableStateOf(true)
     var onHoldCall: Call? = null
     var newCall: Call? = null
     var rejected = false  // Incoming rejected by user or outgoing fails but not due to 408 or 480

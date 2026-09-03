@@ -562,6 +562,8 @@
     <string name="allow_video_recv">Accept receiving video from \'%1$s\'?</string>
     <string name="call_is_ringing">Call is ringing</string>
     <string name="call_is_on_hold">Call is on hold</string>
+    <string name="on_hold">On Hold</string>
+    <string name="enter_uri">Enter name, number or address...</string>
     <string name="call_is_connected">Call is connected</string>
     <string name="rec_in_call">Recording can be turned on or off only when call is not
         connected</string>
@@ -689,4 +691,15 @@
     <string name="resume">Resume</string>
     <string name="keypad">Keypad</string>
     <string name="video">Video</string>
+    <string name="incoming_video_call">Incoming Video Call</string>
+    <string name="answer_video">Answer Video</string>
+    <string name="answer_audio">Audio Only</string>
+    <string name="answer_video_call">Answer Video Call</string>
+    <string name="choose_answer_mode">Choose how you want to join</string>
+    <string name="answer_camera_on">Camera On</string>
+    <string name="answer_camera_on_desc">Join with camera and microphone</string>
+    <string name="answer_camera_off">Camera Off</string>
+    <string name="answer_camera_off_desc">Receive video without sending camera</string>
+    <string name="camera_off">Camera Off</string>
+    <string name="camera_on">Camera</string>
 </resources>
