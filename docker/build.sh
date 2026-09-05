@@ -18,8 +18,13 @@ echo "=================================================="
 
 cd "${PROJECT_ROOT}"
 
-# Ensure gradlew is executable
+# Ensure gradlew and gradle-wrapper.jar exist
 chmod +x ./gradlew
+if [ ! -f "${PROJECT_ROOT}/gradle/wrapper/gradle-wrapper.jar" ]; then
+    echo "⚠️  gradle-wrapper.jar missing, downloading..."
+    mkdir -p "${PROJECT_ROOT}/gradle/wrapper"
+    curl -fsSL https://github.com/gradle/gradle/raw/master/gradle/wrapper/gradle-wrapper.jar -o "${PROJECT_ROOT}/gradle/wrapper/gradle-wrapper.jar" || true
+fi
 
 # Ensure output directory exists
 mkdir -p "${OUTPUT_DIR}"

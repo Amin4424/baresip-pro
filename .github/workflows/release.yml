@@ -105,6 +105,11 @@ jobs:
       - name: Build with Gradle
         run: |
           chmod +x ./gradlew
+          if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ]; then
+            echo "⚠️ gradle-wrapper.jar not found, downloading..."
+            mkdir -p gradle/wrapper
+            curl -fsSL https://github.com/gradle/gradle/raw/master/gradle/wrapper/gradle-wrapper.jar -o gradle/wrapper/gradle-wrapper.jar || true
+          fi
           BUILD_TARGET="${{ github.event.inputs.build_type || 'release' }}"
           
           if [ "$BUILD_TARGET" = "debug" ]; then
