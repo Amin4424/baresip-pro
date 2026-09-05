@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="app/src/main/res/drawable/app_logo.png" alt="Baresip Pro Max Logo" width="160" />
+  <img src="docs/images/logo_baresip_promax.png" alt="Baresip Pro Max Logo" width="560" />
 </p>
 
 <h1 align="center">Baresip Pro Max</h1>
@@ -58,9 +58,9 @@ Whether connecting to enterprise PBXs (such as Asterisk, FreePBX, Kamailio, Open
 <p align="center">
   <img src="docs/images/screen_main.png" width="220" alt="Main Dialer & Video Call" />
   &nbsp;
-  <img src="docs/images/screen_contacts.png" width="220" alt="Contacts & Quick Actions" />
+  <img src="docs/images/screen_call.png" width="220" alt="Incoming Call Screen" />
   &nbsp;
-  <img src="docs/images/screen_accounts.png" width="220" alt="SIP Accounts Management" />
+  <img src="docs/images/screen_history.png" width="220" alt="Call History" />
   &nbsp;
   <img src="docs/images/screen_chats.png" width="220" alt="Chat & Messaging" />
 </p>
