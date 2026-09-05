@@ -82,20 +82,27 @@ jobs:
       # ------------------------------------------------------------------------
       - name: Verify or Unpack distribution
         run: |
-          if [ -d "distribution" ]; then
-            echo "✅ distribution directory found."
-          elif [ -f "distribution.tar.xz" ]; then
-            echo "📦 Extracting distribution.tar.xz..."
-            tar -xf distribution.tar.xz
-          elif [ -f "distribution.tar.gz" ]; then
-            echo "📦 Extracting distribution.tar.gz..."
-            tar -xzf distribution.tar.gz
-          elif [ -n "${{ secrets.DISTRIBUTION_URL }}" ]; then
-            echo "🌐 Downloading distribution from secret URL..."
-            curl -fsSL "${{ secrets.DISTRIBUTION_URL }}" -o distribution.tar.xz
-            tar -xf distribution.tar.xz
+          if [ ! -f "distribution/baresip/lib/arm64-v8a/libbaresip.a" ]; then
+            if [ -f "distribution.tar.xz" ]; then
+              echo "📦 Extracting distribution.tar.xz..."
+              tar -xf distribution.tar.xz
+            elif [ -f "distribution.tar.gz" ]; then
+              echo "📦 Extracting distribution.tar.gz..."
+              tar -xzf distribution.tar.gz
+            elif [ -n "${{ secrets.DISTRIBUTION_URL }}" ]; then
+              echo "🌐 Downloading distribution from secret URL..."
+              curl -fsSL "${{ secrets.DISTRIBUTION_URL }}" -o distribution.tar.xz
+              tar -xf distribution.tar.xz
+            else
+              echo "⚠️ Notice: distribution archive not found."
+            fi
+          fi
+          if [ -f "distribution/baresip/lib/arm64-v8a/libbaresip.a" ]; then
+            echo "✅ distribution libraries ready:"
+            ls -la distribution/baresip/lib/
           else
-            echo "⚠️ Notice: distribution directory not found."
+            echo "❌ Error: distribution libraries missing!"
+            exit 1
           fi
 
       # ------------------------------------------------------------------------
