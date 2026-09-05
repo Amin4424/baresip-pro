@@ -225,6 +225,9 @@
             android:exported="true"
             tools:ignore="ExportedReceiver" >
             <intent-filter>
+                <action android:name="io.github.amin4424.baresip.promax.REGISTER" />
+                <action android:name="io.github.amin4424.baresip.promax.UNREGISTER" />
+                <action android:name="io.github.amin4424.baresip.promax.QUIT" />
                 <action android:name="com.tutpro.baresip.promax.REGISTER" />
                 <action android:name="com.tutpro.baresip.promax.UNREGISTER" />
                 <action android:name="com.tutpro.baresip.promax.QUIT" />

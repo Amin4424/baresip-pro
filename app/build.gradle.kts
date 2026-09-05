@@ -10,7 +10,7 @@ configure<ApplicationExtension> {
     compileSdk = 37
     ndkVersion = "29.0.14206865"
     defaultConfig {
-        applicationId = "com.tutpro.baresip.promax"
+        applicationId = "io.github.amin4424.baresip.promax"
         minSdk = 28
         targetSdk = 36
         versionCode = 1

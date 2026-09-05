@@ -13,6 +13,7 @@ class TaskReceiver : BroadcastReceiver() {
 
         when (intent.action) {
 
+            "io.github.amin4424.baresip.promax.REGISTER", "io.github.amin4424.baresip.promax.UNREGISTER",
             "com.tutpro.baresip.promax.REGISTER", "com.tutpro.baresip.promax.UNREGISTER",
             "com.tutpro.baresip.plus.REGISTER", "com.tutpro.baresip.plus.UNREGISTER" -> {
                 var aor = intent.getStringExtra("aor")
@@ -43,7 +44,7 @@ class TaskReceiver : BroadcastReceiver() {
                 }
             }
 
-            "com.tutpro.baresip.promax.QUIT", "com.tutpro.baresip.plus.QUIT" -> {
+            "io.github.amin4424.baresip.promax.QUIT", "com.tutpro.baresip.promax.QUIT", "com.tutpro.baresip.plus.QUIT" -> {
                 Log.d(TAG, "TaskReceiver: quiting")
                 val baresipService = Intent(context, BaresipService::class.java)
                 if (BaresipService.isServiceRunning) {
