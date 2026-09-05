@@ -129,17 +129,12 @@ import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -153,7 +148,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator
 import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -278,8 +272,6 @@ private fun MainScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val configuration = LocalConfiguration.current
     val keyboardController = LocalSoftwareKeyboardController.current
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
 
     val selectedAor by viewModel.selectedAor.collectAsState()
     val ua = uas.value.find { it.account.aor == selectedAor }
@@ -287,14 +279,6 @@ private fun MainScreen(
 
     val showKeyboard by viewModel.showKeyboard.collectAsState()
     val hideKeyboard by viewModel.hideKeyboard.collectAsState()
-
-    val settings = stringResource(R.string.configuration)
-    val accounts = stringResource(R.string.accounts)
-    val backup = stringResource(R.string.backup)
-    val restore = stringResource(R.string.restore)
-    val logcat = stringResource(R.string.logcat)
-    val restart = stringResource(R.string.restart)
-    val quit = stringResource(R.string.quit)
 
     LaunchedEffect(showKeyboard) {
         if (showKeyboard > 0)
@@ -568,154 +552,29 @@ private fun MainScreen(
         }
     }
 
-    val isDark = isSystemInDarkTheme() || BaresipService.darkTheme.value
-
     if (showVideoLayout.value) {
         VideoLayout(ctx = ctx, viewModel = viewModel, onCloseVideo = { showVideoLayout.value = false })
     } else {
-        ModalNavigationDrawer(
-            drawerState = drawerState,
-            drawerContent = {
-                ModalDrawerSheet(
-                    modifier = Modifier.width(LocalConfiguration.current.screenWidthDp.dp * 0.78f),
-                    drawerContainerColor = if (isDark) Color(0xFF0F172A) else Color.White,
-                    drawerTonalElevation = 6.dp
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                Brush.verticalGradient(
-                                    listOf(
-                                        MaterialTheme.colorScheme.primary,
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.82f)
-                                    )
-                                )
-                            )
-                            .padding(horizontal = 20.dp, vertical = 24.dp)
-                    ) {
-                        Column {
-                            Box(
-                                modifier = Modifier
-                                    .size(60.dp)
-                                    .background(Color.White.copy(alpha = 0.22f), CircleShape)
-                                    .border(1.5.dp, Color.White.copy(alpha = 0.4f), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.CallIcon,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(32.dp),
-                                    tint = Color.White
-                                )
-                            }
-                            Spacer(Modifier.height(12.dp))
-                            Text(
-                                text = "Pico",
-                                fontSize = 22.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                            if (ua != null) {
-                                Text(
-                                    text = ua.account.text(),
-                                    fontSize = 13.sp,
-                                    color = Color.White.copy(alpha = 0.85f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    
-                    NavigationDrawerItem(
-                        label = { Text(text = settings) },
-                        selected = false,
-                        onClick = { scope.launch { drawerState.close() }; navController.navigate("settings") },
-                        icon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
-                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                    )
-                    NavigationDrawerItem(
-                        label = { Text(text = accounts) },
-                        selected = false,
-                        onClick = { scope.launch { drawerState.close() }; navController.navigate("accounts") },
-                        icon = { Icon(Icons.Outlined.AccountCircle, contentDescription = null) },
-                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                    )
-                    NavigationDrawerItem(
-                        label = { Text(text = backup) },
-                        selected = false,
-                        onClick = { scope.launch { drawerState.close() }; launchBackupRequest() },
-                        icon = { Icon(Icons.Outlined.Backup, contentDescription = null) },
-                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                    )
-                    NavigationDrawerItem(
-                        label = { Text(text = restore) },
-                        selected = false,
-                        onClick = { scope.launch { drawerState.close() }; launchRestoreRequest() },
-                        icon = { Icon(Icons.Outlined.Restore, contentDescription = null) },
-                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                    )
-                    if (VERSION.SDK_INT >= 29) {
-                        NavigationDrawerItem(
-                            label = { Text(text = logcat) },
-                            selected = false,
-                            onClick = { scope.launch { drawerState.close() }; launchLogcatRequest() },
-                            icon = { Icon(Icons.Outlined.Description, contentDescription = null) },
-                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                        )
-                    }
-                    NavigationDrawerItem(
-                        label = { Text(text = restart) },
-                        selected = false,
-                        onClick = { scope.launch { drawerState.close() }; onRestartClick() },
-                        icon = { Icon(Icons.Outlined.RestartAlt, contentDescription = null) },
-                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                    )
-                    NavigationDrawerItem(
-                        label = { Text(text = quit) },
-                        selected = false,
-                        onClick = { scope.launch { drawerState.close() }; onQuitClick() },
-                        icon = { Icon(Icons.Outlined.ExitToApp, contentDescription = null) },
-                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                    )
-
-                    Spacer(modifier = Modifier.weight(1f))
-
-                    Text(
-                        text = "v${BuildConfig.VERSION_NAME.removePrefix("v").removePrefix(".")}",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp, end = 16.dp),
-                        textAlign = TextAlign.End,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    )
-                }
+        Scaffold(
+            modifier = Modifier.fillMaxSize().imePadding(),
+            containerColor = MaterialTheme.colorScheme.background,
+            topBar = {
+                TopAppBar(
+                    viewModel = viewModel,
+                    navController = navController,
+                    onSettingsClick = { navController.navigate("settings") },
+                    onAccountsClick = { navController.navigate("accounts") },
+                    onBackupClick = { launchBackupRequest() },
+                    onRestoreClick = { launchRestoreRequest() },
+                    onLogcatClick = { launchLogcatRequest() },
+                    onRestartClick = onRestartClick,
+                    onQuitClick = onQuitClick
+                )
+            },
+            content = { contentPadding ->
+                MainContent(navController, viewModel, contentPadding)
             }
-        ) {
-            Scaffold(
-                modifier = Modifier.fillMaxSize().imePadding(),
-                containerColor = MaterialTheme.colorScheme.background,
-                topBar = {
-                    TopAppBar(
-                        viewModel = viewModel,
-                        navController = navController,
-                        onSettingsClick = { navController.navigate("settings") },
-                        onAccountsClick = { navController.navigate("accounts") },
-                        onBackupClick = { launchBackupRequest() },
-                        onRestoreClick = { launchRestoreRequest() },
-                        onLogcatClick = { launchLogcatRequest() },
-                        onRestartClick = onRestartClick,
-                        onQuitClick = onQuitClick
-                    )
-                },
-                content = { contentPadding ->
-                    MainContent(navController, viewModel, contentPadding)
-                }
-            )
-        }
+        )
     }
 }
 
