@@ -743,7 +743,7 @@ private val onLastClicked = mutableStateOf({})
 private val showDialog = mutableStateOf(false)
 
 @Composable
-private fun NewDialerCard(ctx: Context, viewModel: ViewModel, dialerState: ViewModel.DialerState) {
+private fun NewDialerCard(ctx: Context, viewModel: ViewModel, dialerState: ViewModel.DialerState, navController: NavController) {
     val isDark = isSystemInDarkTheme() || BaresipService.darkTheme.value
     val clipboardManager = LocalClipboardManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -912,7 +912,7 @@ private fun NewDialerCard(ctx: Context, viewModel: ViewModel, dialerState: ViewM
                     keyboardActions = KeyboardActions(
                         onGo = {
                             if (dialerState.callUri.value.isNotEmpty()) {
-                                callClick(ctx, viewModel, dialerState, false)
+                                callClick(ctx, viewModel, dialerState, false, navController)
                             }
                         }
                     )
@@ -1030,7 +1030,7 @@ private fun NewDialerCard(ctx: Context, viewModel: ViewModel, dialerState: ViewM
                         .shadow(6.dp, RoundedCornerShape(18.dp), spotColor = Color(0xFF00E676))
                         .clip(RoundedCornerShape(18.dp))
                         .clickable {
-                            callClick(ctx, viewModel, dialerState, false)
+                            callClick(ctx, viewModel, dialerState, false, navController)
                         },
                     shape = RoundedCornerShape(18.dp),
                     color = Color.Transparent
@@ -1074,7 +1074,7 @@ private fun NewDialerCard(ctx: Context, viewModel: ViewModel, dialerState: ViewM
                         .shadow(6.dp, RoundedCornerShape(18.dp), spotColor = Color(0xFF00B0FF))
                         .clip(RoundedCornerShape(18.dp))
                         .clickable {
-                            callClick(ctx, viewModel, dialerState, true)
+                            callClick(ctx, viewModel, dialerState, true, navController)
                         },
                     shape = RoundedCornerShape(18.dp),
                     color = Color.Transparent
@@ -1272,7 +1272,7 @@ private fun MainContent(navController: NavController, viewModel: ViewModel, cont
 
         if (showEmptyCard && isDialpadVisible) {
             Spacer(modifier = Modifier.height(16.dp))
-            NewDialerCard(ctx = ctx, viewModel = viewModel, dialerState = viewModel.dialerState)
+            NewDialerCard(ctx = ctx, viewModel = viewModel, dialerState = viewModel.dialerState, navController = navController)
         }
 
         Indicator(
@@ -2009,8 +2009,19 @@ fun VideoLayout(ctx: Context, viewModel: ViewModel, onCloseVideo: () -> Unit) {
     }
 }
 
-private fun callClick(ctx: Context, viewModel: ViewModel, dialerState: ViewModel.DialerState?, video: Boolean = false) {
-    if (viewModel.selectedAor.value != "" && dialerState != null) {
+private fun callClick(
+    ctx: Context,
+    viewModel: ViewModel,
+    dialerState: ViewModel.DialerState?,
+    video: Boolean = false,
+    navController: NavController? = null
+) {
+    if (BaresipService.uas.value.isEmpty() || viewModel.selectedAor.value == "" || UserAgent.ofAor(viewModel.selectedAor.value) == null) {
+        Toast.makeText(ctx, R.string.no_account_available, Toast.LENGTH_SHORT).show()
+        navController?.navigate("accounts")
+        return
+    }
+    if (dialerState != null) {
         val uriText = dialerState.callUri.value.trim()
         if (uriText.isNotEmpty()) {
             if (Utils.checkPermissions(ctx, arrayOf(RECORD_AUDIO))) {
