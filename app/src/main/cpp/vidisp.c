@@ -421,35 +421,35 @@ int opengles_display(
     return err;
 }
 
-JNIEXPORT void JNICALL Java_com_tutpro_baresip_plus_VideoView_on_1start(JNIEnv *env, jclass thiz)
+JNIEXPORT void JNICALL Java_io_github_amin4424_baresip_promax_VideoView_on_1start(JNIEnv *env, jclass thiz)
 {
     (void)env;
     (void)thiz;
     LOGI("VideoView on_start");
 }
 
-JNIEXPORT void JNICALL Java_com_tutpro_baresip_plus_VideoView_on_1resume(JNIEnv *env, jclass thiz)
+JNIEXPORT void JNICALL Java_io_github_amin4424_baresip_promax_VideoView_on_1resume(JNIEnv *env, jclass thiz)
 {
     (void)env;
     (void)thiz;
     LOGI("VideoView on_resume");
 }
 
-JNIEXPORT void JNICALL Java_com_tutpro_baresip_plus_VideoView_on_1pause(JNIEnv *env, jclass thiz)
+JNIEXPORT void JNICALL Java_io_github_amin4424_baresip_promax_VideoView_on_1pause(JNIEnv *env, jclass thiz)
 {
     (void)env;
     (void)thiz;
     LOGI("VideoView on_pause");
 }
 
-JNIEXPORT void JNICALL Java_com_tutpro_baresip_plus_VideoView_on_1stop(JNIEnv *env, jclass thiz)
+JNIEXPORT void JNICALL Java_io_github_amin4424_baresip_promax_VideoView_on_1stop(JNIEnv *env, jclass thiz)
 {
     (void)env;
     (void)thiz;
     LOGI("VideoView on_stop");
 }
 
-JNIEXPORT void JNICALL Java_com_tutpro_baresip_plus_VideoView_set_1surface(
+JNIEXPORT void JNICALL Java_io_github_amin4424_baresip_promax_VideoView_set_1surface(
         JNIEnv *env, jclass thiz, jobject surface)
 {
     (void)thiz;

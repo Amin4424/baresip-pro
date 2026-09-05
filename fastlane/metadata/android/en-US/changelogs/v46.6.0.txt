@@ -1,2 +1,0 @@
-- Automatically use CA certificates provided by Android OS
-- New Bulgarian, Japanese, Spanish, and Portuguese (Brazil) translations

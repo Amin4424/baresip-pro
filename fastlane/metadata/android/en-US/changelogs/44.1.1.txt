@@ -1,2 +1,0 @@
-- Fixed resetting of transports when networks are added or removed
-- Fixed typo in Default Phone App help text

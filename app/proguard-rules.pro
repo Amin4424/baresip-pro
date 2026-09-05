@@ -9,9 +9,9 @@
 
 # Add any project specific keep options here:
 -keepattributes LineNumberTable,SourceFile
--keep class com.tutpro.baresip.plus.Camera2 { *; }
+-keep class io.github.amin4424.baresip.promax.Camera2 { *; }
 -dontobfuscate
 -keepclasseswithmembers class * {
     native <methods>;
 }
--keep class com.tutpro.baresip.plus.** { *; }
+-keep class io.github.amin4424.baresip.promax.** { *; }

@@ -12,6 +12,7 @@
   <a href="https://github.com/Amin4424/baresip-pro-max/releases/latest">
     <img src="https://img.shields.io/github/v/release/Amin4424/baresip-pro-max?color=blue&label=Download%20APK&logo=android" alt="Download APK" />
   </a>
+  <img src="https://img.shields.io/badge/Application%20ID-io.github.amin4424.baresip.promax-blue" alt="Application ID" />
   <img src="https://img.shields.io/badge/Android-9.0%2B%20(API%2028%2B)-brightgreen?logo=android" alt="Android Version" />
   <img src="https://img.shields.io/badge/Architecture-arm64--v8a%20%7C%20x86__64-orange" alt="Supported Architectures" />
   <img src="https://img.shields.io/badge/UI-Jetpack%20Compose%20%7C%20Material%203-purple?logo=jetpackcompose" alt="Material 3" />
@@ -25,6 +26,8 @@
 **Baresip Pro Max** is a modern, privacy-first SIP (Session Initiation Protocol) client designed from the ground up for modern Android devices. It combines the rock-solid, industry-standard Baresip C/C++ real-time communications engine with a completely reimagined, fluid **Jetpack Compose (Material 3)** user interface.
 
 Whether connecting to enterprise PBXs (such as Asterisk, FreePBX, Kamailio, OpenSIPS) or standard SIP providers, Baresip Pro Max gives you full control over your communications without proprietary lock-in, tracking, or telemetry.
+
+* **Looking for a Voice-Only Client?** Check out our lightweight sister edition **Baresip Pro** (on the `master` branch), stripped of video dependencies for a minimal APK size and ultra-fast startup.
 
 ---
 

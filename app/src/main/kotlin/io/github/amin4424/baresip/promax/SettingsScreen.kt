@@ -1,0 +1,1643 @@
+package io.github.amin4424.baresip.promax
+
+import android.Manifest
+import android.annotation.SuppressLint
+import android.app.Activity
+import android.app.Activity.RESULT_OK
+import android.app.role.RoleManager
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Context.POWER_SERVICE
+import android.content.Context.ROLE_SERVICE
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build.VERSION
+import android.os.PowerManager
+import android.provider.Settings
+import androidx.activity.compose.LocalActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
+import androidx.navigation.NavGraphBuilder
+import androidx.navigation.compose.composable
+import io.github.amin4424.baresip.promax.CustomElements.AlertDialog
+import io.github.amin4424.baresip.promax.CustomElements.verticalScrollbar
+import io.github.amin4424.baresip.promax.Utils.copyInputStreamToFile
+import java.io.File
+import java.io.FileInputStream
+import java.util.Locale
+import androidx.core.net.toUri
+
+private val showRestartDialog = mutableStateOf(false)
+
+fun NavGraphBuilder.settingsScreenRoute(
+    navController: NavController,
+    onRestartApp: () -> Unit
+) {
+    composable("settings") {
+        val ctx = LocalContext.current
+        val viewModel = viewModel<SettingsViewModel>()
+        SettingsScreen(
+            ctx = ctx,
+            navController = navController,
+            settingsViewModel = viewModel,
+            onBack = {
+                if (viewModel.restart)
+                    showRestartDialog.value = true
+                else
+                    navController.navigateUp()
+            },
+            checkOnClick = {
+                if (checkOnClick(ctx, viewModel)) {
+                    if (viewModel.restart)
+                        showRestartDialog.value = true
+                    else
+                        navController.navigateUp()
+                }
+            },
+            onRestartApp = onRestartApp
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SettingsScreen(
+    ctx: Context,
+    navController: NavController,
+    settingsViewModel: SettingsViewModel,
+    onBack: () -> Unit,
+    checkOnClick: () -> Unit,
+    onRestartApp: () -> Unit
+) {
+    val activity = LocalActivity.current
+    var areSettingsLoaded by remember { mutableStateOf(false) }
+
+    val audioResult = navController.currentBackStackEntry
+        ?.savedStateHandle
+        ?.getLiveData<Boolean>("audio_settings_result")
+        ?.observeAsState()
+
+    LaunchedEffect(audioResult?.value) {
+        Log.d(TAG, "audio_settings_result observed: ${audioResult?.value}")
+        if (audioResult?.value == true) {
+            Log.d(TAG, "Got result from AudioSettings: true")
+            settingsViewModel.restart = true
+            showRestartDialog.value = true
+            navController.currentBackStackEntry
+                ?.savedStateHandle
+                ?.remove<Boolean>("audio_settings_result")
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (!settingsViewModel.restart) {
+            settingsViewModel.save = false
+            settingsViewModel.restart = false
+            settingsViewModel.loadSettings(ctx)
+        }
+        areSettingsLoaded = true
+    }
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize().imePadding(),
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            CustomElements.ModernTopAppBar(
+                title = stringResource(R.string.configuration),
+                onBack = onBack,
+                actions = {
+                    IconButton(onClick = checkOnClick) {
+                        Icon(imageVector = Icons.Filled.Check, contentDescription = "Check", tint = Color.White)
+                    }
+                }
+            )
+        }
+    ) { contentPadding ->
+
+        if (showRestartDialog.value)
+            AlertDialog(
+                showDialog = showRestartDialog,
+                title = stringResource(R.string.restart_request),
+                message = stringResource(R.string.config_restart),
+                firstButtonText = stringResource(R.string.cancel),
+                onFirstClicked = { navController.navigateUp() },
+                lastButtonText = stringResource(R.string.restart),
+                onLastClicked = { onRestartApp() },
+            )
+
+        if (areSettingsLoaded && activity != null)
+            SettingsContent(settingsViewModel, contentPadding, navController, activity, onRestartApp)
+    }
+}
+
+private val dialogTitle = mutableStateOf("")
+private val dialogMessage = mutableStateOf("")
+private val firstButtonText = mutableStateOf("")
+private val onFirstClicked = mutableStateOf({})
+private val lastButtonText = mutableStateOf("")
+private val onLastClicked = mutableStateOf({})
+private val showDialog = mutableStateOf(false)
+
+private val alertTitle = mutableStateOf("")
+private val alertMessage = mutableStateOf("")
+private val showAlert = mutableStateOf(false)
+
+@Composable
+private fun SettingsContent(
+    viewModel: SettingsViewModel,
+    contentPadding: PaddingValues,
+    navController: NavController,
+    activity: Activity,
+    onRestartApp: () -> Unit
+) {
+    val ctx = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var pendingAutoStart by remember { mutableStateOf(false) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                if (pendingAutoStart && isAppearOnTopPermissionGranted(ctx)) {
+                    viewModel.autoStart.value = true
+                    pendingAutoStart = false
+                }
+                if (viewModel.autoStart.value && !isAppearOnTopPermissionGranted(ctx)) {
+                    viewModel.autoStart.value = false
+                    if (Config.variable("auto_start") == "yes") {
+                        Config.replaceVariable("auto_start", "no")
+                        Config.save()
+                    }
+                }
+                val powerManager = ctx.getSystemService(POWER_SERVICE) as PowerManager
+                viewModel.batteryOptimizations.value =
+                    !powerManager.isIgnoringBatteryOptimizations(ctx.packageName)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    val alertTitleText = stringResource(R.string.alert)
+    val errorTitleText = stringResource(R.string.error)
+    val noticeTitleText = stringResource(R.string.notice)
+    val confirmationText = stringResource(R.string.confirmation)
+    val okButtonText = stringResource(R.string.ok)
+    val cancelButtonText = stringResource(R.string.cancel)
+
+    if (showAlert.value)
+        AlertDialog(
+            showDialog = showAlert,
+            title = alertTitle.value,
+            message = alertMessage.value,
+            firstButtonText = "",
+            lastButtonText = okButtonText,
+        )
+
+    if (showDialog.value)
+        AlertDialog(
+            showDialog = showDialog,
+            title = dialogTitle.value,
+            message = dialogMessage.value,
+            firstButtonText = firstButtonText.value,
+            onFirstClicked = onFirstClicked.value,
+            lastButtonText = lastButtonText.value,
+            onLastClicked = onLastClicked.value,
+        )
+
+    @Composable
+    fun StartAutomatically() {
+        val startAutomaticallyTitle = stringResource(R.string.start_automatically)
+        val startAutomaticallyHelp = stringResource(R.string.start_automatically_help)
+        val appearOnTopPermissionMessage = stringResource(R.string.appear_on_top_permission)
+        Row(
+            Modifier.fillMaxWidth().padding(end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            val ctx = LocalContext.current
+            Text(text = startAutomaticallyTitle,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable {
+                        alertTitle.value = startAutomaticallyTitle
+                        alertMessage.value = startAutomaticallyHelp
+                        showAlert.value = true
+                    },
+                fontSize = 18.sp
+            )
+            val startAutomatically by viewModel.autoStart.collectAsState()
+            Switch(
+                checked = startAutomatically,
+                onCheckedChange = {
+                    if (it) {
+                        if (!isAppearOnTopPermissionGranted(ctx)) {
+                            dialogTitle.value = noticeTitleText
+                            dialogMessage.value = appearOnTopPermissionMessage
+                            firstButtonText.value = cancelButtonText
+                            onFirstClicked.value = {}
+                            lastButtonText.value = okButtonText
+                            onLastClicked.value = {
+                                val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+                                pendingAutoStart = true
+                                ctx.startActivity(intent)
+                            }
+                            showDialog.value = true
+                            viewModel.autoStart.value = false
+                        }
+                        else
+                            viewModel.autoStart.value = true
+                    }
+                    else
+                        viewModel.autoStart.value = false
+                }
+            )
+        }
+    }
+
+    @Composable
+    fun AddressFamily() {
+        val addressFamilyTitle = stringResource(R.string.address_family)
+        val addressFamilyHelp = stringResource(R.string.address_family_help)
+        Row(
+            Modifier.fillMaxWidth().padding(end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            val addressFamily by viewModel.addressFamily.collectAsState()
+            Text(text = addressFamilyTitle,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable {
+                        alertTitle.value = addressFamilyTitle
+                        alertMessage.value = addressFamilyHelp
+                        showAlert.value = true
+                    },
+                fontSize = 18.sp
+            )
+            val isDropDownExpanded = remember { mutableStateOf(false) }
+            val familyNames = listOf("--",  "IPv4", "IPv6")
+            val familyValues = listOf("",  "ipv4", "ipv6")
+            val itemPosition = remember { mutableIntStateOf(familyValues.indexOf(addressFamily)) }
+            Box {
+                Row(
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { isDropDownExpanded.value = true }
+                ) {
+                    Text(text = familyNames[itemPosition.intValue])
+                    Icon(
+                        imageVector = Icons.Filled.ArrowDropDown,
+                        contentDescription = null,
+                        modifier = Modifier.size(36.dp)
+                    )
+                    //CustomElements.DrawDrawable(R.drawable.arrow_drop_down)
+                }
+                DropdownMenu(
+                    expanded = isDropDownExpanded.value,
+                    onDismissRequest = { isDropDownExpanded.value = false }
+                ) {
+                    familyNames.forEachIndexed { index, family ->
+                        DropdownMenuItem(
+                            text = { Text(text = family) },
+                            onClick = {
+                                isDropDownExpanded.value = false
+                                itemPosition.intValue = index
+                                viewModel.addressFamily.value = familyValues[index]
+                            })
+                        if (index < 2)
+                            HorizontalDivider(thickness = 1.dp)
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun ListenAddress() {
+        val listenAddressTitle = stringResource(R.string.listen_address)
+        val listenAddressHelp = stringResource(R.string.listen_address_help)
+        Row(
+            Modifier.fillMaxWidth().padding(end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start,
+        ) {
+            val listenAddress by viewModel.listenAddress.collectAsState()
+            OutlinedTextField(
+                value = listenAddress,
+                placeholder = { Text(stringResource(R.string._0_0_0_0_5060)) },
+                onValueChange = { viewModel.listenAddress.value = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        alertTitle.value = listenAddressTitle
+                        alertMessage.value = listenAddressHelp
+                        showAlert.value = true
+                    },
+                singleLine = true,
+                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 18.sp),
+                label = { Text(listenAddressTitle) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+            )
+        }
+    }
+
+    @Composable
+    fun TransportProtocols() {
+        val transportProtocolsTitle = stringResource(R.string.transport_protocols)
+        val transportProtocolsHelp = stringResource(R.string.transport_protocols_help)
+        Row(
+            Modifier.fillMaxWidth().padding(top = 10.dp, end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            val transportProtocols by viewModel.transportProtocols.collectAsState()
+            OutlinedTextField(
+                value = transportProtocols,
+                onValueChange = { viewModel.transportProtocols.value = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        alertTitle.value = transportProtocolsTitle
+                        alertMessage.value = transportProtocolsHelp
+                        showAlert.value = true
+                    },
+                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 18.sp),
+                label = { Text(transportProtocolsTitle) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+            )
+        }
+    }
+
+    @Composable
+    fun DnsServers() {
+        val dnsServersTitle = stringResource(R.string.dns_servers)
+        val dnsServersHelp = stringResource(R.string.dns_servers_help)
+        Row(
+            Modifier.fillMaxWidth().padding(top = 10.dp, end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            val dnsServers by viewModel.dnsServers.collectAsState()
+            OutlinedTextField(
+                value = dnsServers,
+                onValueChange = { viewModel.dnsServers.value = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        alertTitle.value = dnsServersTitle
+                        alertMessage.value = dnsServersHelp
+                        showAlert.value = true
+                    },
+                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 18.sp),
+                label = { Text(dnsServersTitle) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+            )
+        }
+    }
+
+    @Composable
+    fun TlsCertificateFile(activity: Activity) {
+
+        val ctx = LocalContext.current
+
+        val readCertError = stringResource(R.string.read_cert_error)
+        val tlsCertificateFileTitle = stringResource(R.string.tls_certificate_file)
+        val tlsCertificateFileHelp = stringResource(R.string.tls_certificate_file_help)
+
+        val requestPermissionLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission()
+        ) {}
+
+        val certificateRequest = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.StartActivityForResult()
+        ) {
+            val certPath = BaresipService.filesPath + "/cert.pem"
+            val certFile = File(certPath)
+            if (it.resultCode == RESULT_OK) {
+                it.data?.data?.also { uri ->
+                    try {
+                        val inputStream = ctx.contentResolver.openInputStream(uri) as FileInputStream
+                        certFile.copyInputStreamToFile(inputStream)
+                        inputStream.close()
+                        Config.replaceVariable("sip_certificate", certPath)
+                        viewModel.tlsCertificateFile.value = true
+                        viewModel.save = true
+                        viewModel.restart = true
+                    } catch (e: Error) {
+                        alertTitle.value = errorTitleText
+                        alertMessage.value = readCertError + ": " + e.message
+                        showAlert.value = true
+                        viewModel.tlsCertificateFile.value = false
+                    }
+                }
+            }
+            else
+                viewModel.tlsCertificateFile.value = false
+            if (!viewModel.tlsCertificateFile.value)
+                Utils.deleteFile(certFile)
+        }
+
+        val showAlertDialog = remember { mutableStateOf(false) }
+
+        Row(
+            Modifier.fillMaxWidth().padding(end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            val ctx = LocalContext.current
+            Text(text = tlsCertificateFileTitle,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable {
+                        alertTitle.value = tlsCertificateFileTitle
+                        alertMessage.value = tlsCertificateFileHelp
+                        showAlert.value = true
+                    },
+                fontSize = 18.sp
+            )
+            val tlsCertificateFile by viewModel.tlsCertificateFile.collectAsState()
+            Switch(
+                checked = tlsCertificateFile,
+                onCheckedChange = {
+                    viewModel.tlsCertificateFile.value = it
+                    if (it)
+                        if (VERSION.SDK_INT < 29) {
+                            viewModel.tlsCertificateFile.value = false
+                            val permission = Manifest.permission.READ_EXTERNAL_STORAGE
+                            when {
+                                ContextCompat.checkSelfPermission(ctx, permission) ==
+                                        PackageManager.PERMISSION_GRANTED -> {
+                                    Log.d(TAG, "Read External Storage permission granted")
+                                    val downloadsPath = Utils.downloadsPath("cert.pem")
+                                    val content = Utils.getFileContents(downloadsPath)
+                                    if (content == null) {
+                                        alertTitle.value = errorTitleText
+                                        alertMessage.value = readCertError
+                                        showAlert.value = true
+                                        return@Switch
+                                    }
+                                    val certPath = BaresipService.filesPath + "/cert.pem"
+                                    Utils.putFileContents(certPath, content)
+                                    Config.replaceVariable("sip_certificate", certPath)
+                                    viewModel.tlsCertificateFile.value = true
+                                    viewModel.save = true
+                                    viewModel.restart = true
+                                }
+                                shouldShowRequestPermissionRationale(activity, permission) ->
+                                    showAlertDialog.value = true
+                                else ->
+                                    requestPermissionLauncher.launch(permission)
+                            }
+                        }
+                        else
+                            Utils.selectInputFile(certificateRequest)
+                    else {
+                        Config.removeVariable("sip_certificate")
+                        Utils.deleteFile(File(BaresipService.filesPath + "/cert.pem"))
+                        viewModel.save = true
+                        viewModel.restart = true
+                    }
+                }
+            )
+        }
+
+        if (showAlertDialog.value)
+            AlertDialog(
+                showDialog = showAlertDialog,
+                title = stringResource(R.string.notice),
+                message = stringResource(R.string.no_read_permission),
+                firstButtonText = "",
+                onFirstClicked = {},
+                lastButtonText = stringResource(R.string.ok),
+                onLastClicked = { requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE) },
+            )
+    }
+
+    @Composable
+    fun VerifyServer() {
+        val verifyServerTitle = stringResource(R.string.verify_server)
+        val verifyServerHelp = stringResource(R.string.verify_server_help)
+        Row(
+            Modifier.fillMaxWidth().padding(end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            Text(text = verifyServerTitle,
+                modifier = Modifier.weight(1f)
+                    .clickable {
+                        alertTitle.value = verifyServerTitle
+                        alertMessage.value = verifyServerHelp
+                        showAlert.value = true
+                    },
+                fontSize = 18.sp
+            )
+            val verifyServer by viewModel.verifyServer.collectAsState()
+            Switch(
+                checked = verifyServer,
+                onCheckedChange = { viewModel.verifyServer.value = it }
+            )
+        }
+    }
+
+    @Composable
+    fun CaFile(activity: Activity) {
+
+        val ctx = LocalContext.current
+
+        val tlsCaFileTitle = stringResource(R.string.tls_ca_file)
+        val tlsCaFileHelp = stringResource(R.string.tls_ca_file_help)
+        val readCaCertsError = stringResource(R.string.read_ca_certs_error)
+        val noReadPermissionMessage = stringResource(R.string.no_read_permission)
+
+        val requestPermissionLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission()
+        ) {}
+
+        val caCertsRequest = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.StartActivityForResult()
+        ) {
+            val caCertsFile = File(BaresipService.filesPath + "/ca_certs.crt")
+            if (it.resultCode == RESULT_OK)
+                it.data?.data?.also { uri ->
+                    try {
+                        val inputStream = ctx.contentResolver.openInputStream(uri) as FileInputStream
+                        caCertsFile.copyInputStreamToFile(inputStream)
+                        inputStream.close()
+                        viewModel.restart = true
+                    } catch (e: Error) {
+                        alertTitle.value = errorTitleText
+                        alertMessage.value = readCaCertsError + ": " + e.message
+                        showAlert.value = true
+                        viewModel.caFile.value = false
+                    }
+                }
+            else
+                viewModel.caFile.value = false
+            if (!viewModel.caFile.value) caCertsFile.delete()
+        }
+
+        Row(
+            Modifier.fillMaxWidth().padding(end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            val ctx = LocalContext.current
+            Text(text = tlsCaFileTitle,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable {
+                        alertTitle.value = tlsCaFileTitle
+                        alertMessage.value = tlsCaFileHelp
+                        showAlert.value = true
+                    },
+                fontSize = 18.sp
+            )
+            val caFile by viewModel.caFile.collectAsState()
+            Switch(
+                checked = caFile,
+                onCheckedChange = {
+                    viewModel.caFile.value = it
+                    if (it)
+                        if (VERSION.SDK_INT < 29) {
+                            viewModel.caFile.value = false
+                            val permission = Manifest.permission.READ_EXTERNAL_STORAGE
+                            when {
+                                ContextCompat.checkSelfPermission(ctx, permission) == PackageManager.PERMISSION_GRANTED -> {
+                                    Log.d(TAG, "Read External Storage permission granted")
+                                    val downloadsPath = Utils.downloadsPath("ca_certs.crt")
+                                    val content = Utils.getFileContents(downloadsPath)
+                                    if (content == null) {
+                                        alertTitle.value = errorTitleText
+                                        alertMessage.value = readCaCertsError
+                                        showAlert.value = true
+                                        return@Switch
+                                    }
+                                    File(BaresipService.filesPath + "/ca_certs.crt").writeBytes(content)
+                                    viewModel.caFile.value = true
+                                    viewModel.restart = true
+                                }
+                                shouldShowRequestPermissionRationale(activity, permission) -> {
+                                    dialogTitle.value = noticeTitleText
+                                    dialogMessage.value = noReadPermissionMessage
+                                    firstButtonText.value = ""
+                                    lastButtonText.value = okButtonText
+                                    onLastClicked.value = {
+                                        requestPermissionLauncher.launch(permission)
+                                    }
+                                    showDialog.value = true
+                                }
+                                else ->
+                                    requestPermissionLauncher.launch(permission)
+                            }
+                        }
+                        else
+                            Utils.selectInputFile(caCertsRequest)
+                    else {
+                        Utils.deleteFile(File(BaresipService.filesPath + "/ca_certs.crt"))
+                        viewModel.restart = true
+                    }
+                }
+            )
+        }
+    }
+
+    @Composable
+    fun UserAgent() {
+        val userAgentTitle = stringResource(R.string.user_agent)
+        val userAgentHelp = stringResource(R.string.user_agent_help)
+        Row(
+            Modifier.fillMaxWidth().padding(end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            val userAgent by viewModel.userAgent.collectAsState()
+            OutlinedTextField(
+                value = userAgent,
+                placeholder = { Text(userAgentTitle) },
+                onValueChange = { viewModel.userAgent.value = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        alertTitle.value = userAgentTitle
+                        alertMessage.value = userAgentHelp
+                        showAlert.value = true
+                    },
+                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 18.sp),
+                label = { Text(userAgentTitle) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+            )
+        }
+    }
+
+    @Composable
+    fun UniqueContactUri() {
+        val uniqueContactUriTitle = stringResource(R.string.unique_contact_uri)
+        val uniqueContactUriHelp = stringResource(R.string.unique_contact_uri_help)
+        Row(
+            Modifier.fillMaxWidth().padding(end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            Text(text = uniqueContactUriTitle,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable {
+                        alertTitle.value = uniqueContactUriTitle
+                        alertMessage.value = uniqueContactUriHelp
+                        showAlert.value = true
+                    },
+                fontSize = 18.sp
+            )
+            val uniqueContactUri by viewModel.uniqueContactUri.collectAsState()
+            Switch(
+                checked = uniqueContactUri,
+                onCheckedChange = { viewModel.uniqueContactUri.value = it }
+            )
+        }
+    }
+
+    @Composable
+    fun AudioSettings(navController: NavController) {
+        Row(
+            Modifier.fillMaxWidth().padding(top = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            Text(
+                text = stringResource(R.string.audio_settings),
+                modifier = Modifier.weight(1f).clickable { navController.navigate("audio") },
+                fontSize = 18.sp,
+                fontWeight = FontWeight. Bold
+            )
+        }
+    }
+
+    @Composable
+    fun VideoSize() {
+        Row(
+            Modifier.fillMaxWidth().padding(top = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            val videoSizeTitle = stringResource(R.string.video_size)
+            val videoSizeHelp = stringResource(R.string.video_size_help)
+            Text(text = videoSizeTitle,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable {
+                        alertTitle.value = videoSizeTitle
+                        alertMessage.value = videoSizeHelp
+                        showAlert.value = true
+                    },
+                fontSize = 18.sp)
+            val isDropDownExpanded = remember {
+                mutableStateOf(false)
+            }
+            val videoSize by viewModel.videoSize.collectAsState()
+            val frameSizes = mutableListOf<String>()
+            frameSizes.addAll(Config.videoSizes)
+            val sizeCount = frameSizes.size
+            val itemPosition = remember { mutableIntStateOf(frameSizes.indexOf(videoSize)) }
+            Box {
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { isDropDownExpanded.value = true }
+                ) {
+                    Text(text = frameSizes[itemPosition.intValue])
+                    Icon(
+                        imageVector = Icons.Filled.ArrowDropDown,
+                        contentDescription = null,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+                DropdownMenu(
+                    expanded = isDropDownExpanded.value,
+                    onDismissRequest = {
+                        isDropDownExpanded.value = false
+                    }
+                ) {
+                    frameSizes.forEachIndexed { index, size ->
+                        DropdownMenuItem(
+                            text = { Text(text = size) },
+                            onClick = {
+                                isDropDownExpanded.value = false
+                                itemPosition.intValue = index
+                                viewModel.videoSize.value = frameSizes[index]
+                            }
+                        )
+                        if (index < sizeCount - 1)
+                            HorizontalDivider(thickness = 1.dp)
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun VideoFps() {
+        Row(
+            Modifier.fillMaxWidth().padding(end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            val videoFps by viewModel.videoFps.collectAsState()
+            val videoFpsTitle = stringResource(R.string.video_fps)
+            val videoFpsHelp = stringResource(R.string.video_fps_help)
+            OutlinedTextField(
+                value = videoFps,
+                placeholder = { Text(videoFpsTitle) },
+                onValueChange = { viewModel.videoFps.value = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        alertTitle.value = videoFpsTitle
+                        alertMessage.value = videoFpsHelp
+                        showAlert.value = true
+                    },
+                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 18.sp),
+                label = { Text(videoFpsTitle) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+            )
+        }
+    }
+
+    @SuppressLint("BatteryLife")
+    @Composable
+    fun BatteryOptimizations() {
+        val batteryOptimizationsTitle = stringResource(R.string.battery_optimizations)
+        val batteryOptimizationsHelp = stringResource(R.string.battery_optimizations_help)
+        Row(
+            Modifier.fillMaxWidth().padding(end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            val ctx = LocalContext.current
+            val batterySettingsLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.StartActivityForResult()
+            ) { _ ->
+                val powerManager = ctx.getSystemService(POWER_SERVICE) as PowerManager
+                viewModel.batteryOptimizations.value =
+                    !powerManager.isIgnoringBatteryOptimizations(ctx.packageName)
+            }
+            Text(text = batteryOptimizationsTitle,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable {
+                        alertTitle.value = batteryOptimizationsTitle
+                        alertMessage.value = batteryOptimizationsHelp
+                        showAlert.value = true
+                    },
+                fontSize = 18.sp
+            )
+            val battery by viewModel.batteryOptimizations.collectAsState()
+            Switch(
+                checked = battery,
+                onCheckedChange = {
+                    viewModel.batteryOptimizations.value = it
+                    if (it)
+                        batterySettingsLauncher.launch(
+                            Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                        )
+                    else {
+                        val intent =
+                            Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                data = "package:${ctx.packageName}".toUri()
+                            }
+                        batterySettingsLauncher.launch(intent)
+                    }
+                }
+            )
+        }
+    }
+
+    @Composable
+    fun DarkTheme() {
+        val darkThemeTitle = stringResource(R.string.dark_theme)
+        val darkThemeHelp = stringResource(R.string.dark_theme_help)
+        Row(
+            Modifier.fillMaxWidth().padding(end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            Text(text = darkThemeTitle,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable {
+                        alertTitle.value = darkThemeTitle
+                        alertMessage.value = darkThemeHelp
+                        showAlert.value = true
+                    },
+                fontSize = 18.sp
+            )
+            val darkTheme by viewModel.darkTheme.collectAsState()
+            Switch(
+                checked = darkTheme,
+                onCheckedChange = { viewModel.darkTheme.value = it }
+            )
+        }
+    }
+
+    @Composable
+    fun DynamicColors() {
+        val dynamicColorsTitle = stringResource(R.string.dynamic_colors)
+        val dynamicColorsHelp = stringResource(R.string.dynamic_colors_help)
+        Row(
+            Modifier.fillMaxWidth().padding(end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            Text(text = dynamicColorsTitle,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable {
+                        alertTitle.value = dynamicColorsTitle
+                        alertMessage.value = dynamicColorsHelp
+                        showAlert.value = true
+                    },
+                fontSize = 18.sp
+            )
+            val dynamicColors by viewModel.dynamicColors.collectAsState()
+            Switch(
+                checked = dynamicColors,
+                onCheckedChange = { viewModel.dynamicColors.value = it }
+            )
+        }
+    }
+
+    @Composable
+    fun ColorBlind() {
+        val colorBlindTitle = stringResource(R.string.colorblind)
+        val colorBlindHelp = stringResource(R.string.colorblind_help)
+        Row(
+            Modifier.fillMaxWidth().padding(end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            Text(text = colorBlindTitle,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable {
+                        alertTitle.value = colorBlindTitle
+                        alertMessage.value = colorBlindHelp
+                        showAlert.value = true
+                    },
+                fontSize = 18.sp
+            )
+            val colorblind by viewModel.colorblind.collectAsState()
+            Switch(
+                checked = colorblind,
+                onCheckedChange = { viewModel.colorblind.value = it }
+            )
+        }
+    }
+
+    @Composable
+    fun ProximitySensing() {
+        val proximitySensingTitle = stringResource(R.string.proximity_sensing)
+        val proximitySensingHelp = stringResource(R.string.proximity_sensing_help)
+        Row(
+            Modifier.fillMaxWidth().padding(end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            Text(text = proximitySensingTitle,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable {
+                        alertTitle.value = proximitySensingTitle
+                        alertMessage.value = proximitySensingHelp
+                        showAlert.value = true
+                    },
+                fontSize = 18.sp
+            )
+            val proximitySensing by viewModel.proximitySensing.collectAsState()
+            Switch(
+                checked = proximitySensing,
+                onCheckedChange = { viewModel.proximitySensing.value = it }
+            )
+        }
+    }
+
+    @RequiresApi(29)
+    @Composable
+    fun DefaultDialer() {
+        val defaultPhoneAppTitle = stringResource(R.string.default_phone_app)
+        val defaultPhoneAppHelp = stringResource(R.string.default_phone_app_help)
+        val dialerRoleNotAvailableMessage = stringResource(R.string.dialer_role_not_available)
+        val createMobileAccountTitle = stringResource(R.string.create_mobile_account)
+        val createMobileAccountHelp = stringResource(R.string.create_mobile_account_help)
+
+        val defaultDialer by viewModel.defaultDialer.collectAsState()
+        val mobileAccount by viewModel.mobileAccount.collectAsState()
+        val isSimReady = BaresipService.instance?.isSimReady() == true
+
+        Column {
+            Row(
+                Modifier.fillMaxWidth().padding(end = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Start
+            ) {
+                val ctx = LocalContext.current
+                Text(text = defaultPhoneAppTitle,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable {
+                            alertTitle.value = defaultPhoneAppTitle
+                            alertMessage.value = defaultPhoneAppHelp
+                            showAlert.value = true
+                        },
+                    fontSize = 18.sp
+                )
+                val roleManager = ctx.getSystemService(ROLE_SERVICE) as RoleManager
+
+                val requestPermissionLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.RequestMultiplePermissions()
+                ) { results ->
+                    if (results[Manifest.permission.READ_PHONE_STATE] == true)
+                        Log.d(TAG, "READ_PHONE_STATE permission granted")
+                    if (results[Manifest.permission.READ_PHONE_NUMBERS] == true)
+                        Log.d(TAG, "READ_PHONE_NUMBERS permission granted")
+                    BaresipService.instance?.addMobileUserAgent()
+                    viewModel.restart = true
+                }
+
+                val dialerRoleRequest = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.StartActivityForResult()
+                ) { _ ->
+                    val isHeld = roleManager.isRoleHeld(RoleManager.ROLE_DIALER)
+                    viewModel.defaultDialer.value = isHeld
+                    if (isHeld) {
+                        val permissions = arrayOf(
+                            Manifest.permission.READ_PHONE_STATE,
+                            Manifest.permission.READ_PHONE_NUMBERS
+                        )
+                        if (Utils.checkPermissions(ctx, permissions)) {
+                            BaresipService.instance?.addMobileUserAgent()
+                            viewModel.restart = true
+                        }
+                        else
+                            requestPermissionLauncher.launch(permissions)
+                    }
+                    else
+                        BaresipService.instance?.addMobileUserAgent()
+                    viewModel.restart = true
+                }
+                Switch(
+                    checked = defaultDialer,
+                    onCheckedChange = {
+                        viewModel.defaultDialer.value = it
+                        if (it) {
+                            if (!roleManager.isRoleAvailable(RoleManager.ROLE_DIALER)) {
+                                alertTitle.value = alertTitleText
+                                alertMessage.value = dialerRoleNotAvailableMessage
+                                showAlert.value = true
+                            }
+                            else if (!roleManager.isRoleHeld(RoleManager.ROLE_DIALER))
+                                dialerRoleRequest.launch(
+                                    roleManager.createRequestRoleIntent(RoleManager.ROLE_DIALER)
+                                )
+                        }
+                        else {
+                            try {
+                                dialerRoleRequest.launch(Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS))
+                            } catch (e: ActivityNotFoundException) {
+                                Log.e(TAG, "ActivityNotFound exception: ${e.message}")
+                            }
+                            BaresipService.instance?.addMobileUserAgent()
+                            viewModel.restart = true
+                        }
+                    }
+                )
+            }
+
+            if (defaultDialer && isSimReady) {
+                Row(
+                    Modifier.fillMaxWidth().padding(start = 16.dp, end = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Start
+                ) {
+                    Text(text = createMobileAccountTitle,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable {
+                                alertTitle.value = createMobileAccountTitle
+                                alertMessage.value = createMobileAccountHelp
+                                showAlert.value = true
+                            },
+                        fontSize = 18.sp
+                    )
+                    Switch(
+                        checked = mobileAccount,
+                        onCheckedChange = {
+                            viewModel.mobileAccount.value = it
+                            BaresipService.mobileAccount = it
+                            Config.replaceVariable("mobile_account", if (it) "yes" else "no")
+                            Config.save()
+                            BaresipService.instance?.addMobileUserAgent()
+                            viewModel.restart = true
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    @RequiresApi(29)
+    @Composable
+    fun DefaultMessaging() {
+        val defaultMessagingAppTitle = stringResource(R.string.default_messaging_app)
+        val defaultMessagingAppHelp = stringResource(R.string.default_messaging_app_help)
+        val messagingRoleNotAvailableMessage = stringResource(R.string.messaging_role_not_available)
+        Row(
+            Modifier.fillMaxWidth().padding(end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            val ctx = LocalContext.current
+            Text(text = defaultMessagingAppTitle,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable {
+                        alertTitle.value = defaultMessagingAppTitle
+                        alertMessage.value = defaultMessagingAppHelp
+                        showAlert.value = true
+                    },
+                fontSize = 18.sp
+            )
+            val defaultMessaging by viewModel.defaultMessaging.collectAsState()
+            val roleManager = ctx.getSystemService(ROLE_SERVICE) as RoleManager
+
+            val messagingRoleRequest = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.StartActivityForResult()
+            ) { _ ->
+                val isHeld = roleManager.isRoleHeld(RoleManager.ROLE_SMS)
+                viewModel.defaultMessaging.value = isHeld
+                viewModel.restart = true
+            }
+            Switch(
+                checked = defaultMessaging,
+                onCheckedChange = {
+                    viewModel.defaultMessaging.value = it
+                    if (it) {
+                        if (!roleManager.isRoleAvailable(RoleManager.ROLE_SMS)) {
+                            alertTitle.value = alertTitleText
+                            alertMessage.value = messagingRoleNotAvailableMessage
+                            showAlert.value = true
+                        }
+                        else
+                            if (!roleManager.isRoleHeld(RoleManager.ROLE_SMS))
+                                messagingRoleRequest.launch(roleManager.createRequestRoleIntent(RoleManager.ROLE_SMS))
+                    }
+                    else
+                        try {
+                            messagingRoleRequest.launch(Intent("android.settings.MANAGE_DEFAULT_APPS_SETTINGS"))
+                        } catch (e: ActivityNotFoundException) {
+                            Log.e(TAG, "ActivityNotFound exception: ${e.message}")
+                        }
+                }
+            )
+        }
+    }
+
+    @Composable
+    fun Debug() {
+        val debugTitle = stringResource(R.string.debug)
+        val debugHelp = stringResource(R.string.debug_help)
+        Row(
+            Modifier.fillMaxWidth().padding(end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            Text(text = debugTitle,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable {
+                        alertTitle.value = debugTitle
+                        alertMessage.value = debugHelp
+                        showAlert.value = true
+                    },
+                fontSize = 18.sp
+            )
+            val debug by viewModel.debug.collectAsState()
+            Switch(
+                checked = debug,
+                onCheckedChange = {
+                    viewModel.debug.value = it
+                    if (!it) viewModel.sipTrace.value = false
+                }
+            )
+        }
+    }
+
+    @Composable
+    fun SipTrace() {
+        val sipTraceTitle = stringResource(R.string.sip_trace)
+        val sipTraceHelp = stringResource(R.string.sip_trace_help)
+        Row(
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            Text(text = sipTraceTitle,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable {
+                        alertTitle.value = sipTraceTitle
+                        alertMessage.value = sipTraceHelp
+                        showAlert.value = true
+                    },
+                fontSize = 18.sp
+            )
+            val sipTrace by viewModel.sipTrace.collectAsState()
+            Switch(
+                checked = sipTrace,
+                onCheckedChange = { viewModel.sipTrace.value = it }
+            )
+        }
+    }
+
+    @Composable
+    fun Reset(onRestartApp: () -> Unit) {
+        val resetConfigTitle = stringResource(R.string.reset_config)
+        val resetConfigHelp = stringResource(R.string.reset_config_help)
+        val resetConfigAlert = stringResource(R.string.reset_config_alert)
+        val resetButtonText = stringResource(R.string.reset)
+        Row(
+            Modifier.fillMaxWidth().padding(end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            Text(text = resetConfigTitle,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable {
+                        alertTitle.value = resetConfigTitle
+                        alertMessage.value = resetConfigHelp
+                        showAlert.value = true
+                    },
+                fontSize = 18.sp
+            )
+            var reset by remember { mutableStateOf(false) }
+            Switch(
+                checked = reset,
+                onCheckedChange = {
+                    dialogTitle.value = confirmationText
+                    dialogMessage.value = resetConfigAlert
+                    firstButtonText.value = cancelButtonText
+                    onFirstClicked.value = { reset = false }
+                    lastButtonText.value = resetButtonText
+                    onLastClicked.value = {
+                        Config.reset()
+                        onRestartApp()
+                    }
+                    showDialog.value = true
+                }
+            )
+        }
+    }
+
+    @Composable
+    fun SectionCard(
+        title: String,
+        content: @Composable ColumnScope.() -> Unit
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 4.dp),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                content()
+            }
+        }
+    }
+
+    val scrollState = rememberScrollState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(contentPadding)
+            .padding(vertical = 8.dp)
+            .verticalScrollbar(scrollState)
+            .verticalScroll(scrollState),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        SectionCard(title = "Network & Connectivity") {
+            StartAutomatically()
+            AddressFamily()
+            ListenAddress()
+            TransportProtocols()
+            DnsServers()
+            TlsCertificateFile(activity)
+            VerifyServer()
+            CaFile(activity)
+            UserAgent()
+            UniqueContactUri()
+        }
+
+        SectionCard(title = "Media & Codecs") {
+            AudioSettings(navController)
+            VideoSize()
+            VideoFps()
+        }
+
+        SectionCard(title = "System & Integration") {
+            if (VERSION.SDK_INT >= 29) {
+                DefaultDialer()
+                DefaultMessaging()
+                val defaultDialer by viewModel.defaultDialer.collectAsState()
+                val defaultMessaging by viewModel.defaultMessaging.collectAsState()
+                if (!defaultDialer && !defaultMessaging)
+                    BatteryOptimizations()
+            } else {
+                BatteryOptimizations()
+            }
+            ProximitySensing()
+        }
+
+        SectionCard(title = "Appearance & Advanced") {
+            DarkTheme()
+            if (VERSION.SDK_INT >= 31)
+                DynamicColors()
+            ColorBlind()
+            Debug()
+            val debug by viewModel.debug.collectAsState()
+            if (debug)
+                SipTrace()
+            Reset(onRestartApp)
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Baresip Pro Max",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Normal,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+private fun checkOnClick(ctx: Context, viewModel: SettingsViewModel): Boolean {
+
+    val noticeTitle = ctx.getString(R.string.notice)
+
+    if ((Config.variable("auto_start") == "yes") != viewModel.autoStart.value) {
+        Config.replaceVariable("auto_start", if (viewModel.autoStart.value) "yes" else "no")
+        viewModel.save = true
+    }
+
+    val listenAddr = viewModel.listenAddress.value.trim()
+    if (listenAddr != Config.variable("sip_listen")) {
+        if ((listenAddr != "") && !Utils.checkIpPort(listenAddr)) {
+            alertTitle.value = ctx.getString(R.string.notice)
+            alertMessage.value = "${ctx.getString(R.string.invalid_listen_address)}: $listenAddr"
+            showAlert.value = true
+            return false
+        }
+        Config.replaceVariable("sip_listen", listenAddr)
+        viewModel.save = true
+        viewModel.restart = true
+    }
+
+    if (Config.variable("net_af").lowercase() != viewModel.addressFamily.value) {
+        Config.replaceVariable("net_af", viewModel.addressFamily.value)
+        viewModel.save = true
+        viewModel.restart = true
+    }
+
+    val transportProtocols = viewModel.transportProtocols.value
+        .lowercase(Locale.ROOT).replace(" ", "")
+    if (transportProtocols != Config.variable("sip_transports")) {
+        if (!checkTransportProtocols(transportProtocols)) {
+            alertTitle.value = noticeTitle
+            alertMessage.value = "${ctx.getString(R.string.invalid_transport_protocols)}: " +
+                    transportProtocols
+            showAlert.value = true
+            return false
+        }
+        Config.removeVariable("sip_transports")
+        if (transportProtocols.isNotEmpty())
+            Config.replaceVariable("sip_transports", transportProtocols)
+        viewModel.save = true
+        viewModel.restart = true
+    }
+
+    val dnsServers = addMissingPorts(viewModel.dnsServers.value
+        .lowercase(Locale.ROOT).replace(" ", ""))
+    if (dnsServers != Config.dnsServers()) {
+        if (!checkDnsServers(dnsServers)) {
+            alertTitle.value = noticeTitle
+            alertMessage.value = "${ctx.getString(R.string.invalid_dns_servers)}: $dnsServers"
+            showAlert.value = true
+            return false
+        }
+        Config.removeVariable("dns_server")
+        if (dnsServers.isNotEmpty()) {
+            for (server in dnsServers.split(","))
+                Config.addVariable("dns_server", server)
+            Config.replaceVariable("dyn_dns", "no")
+            if (Api.net_use_nameserver(dnsServers) != 0) {
+                alertTitle.value = noticeTitle
+                alertMessage.value = "${ctx.getString(R.string.failed_to_set_dns_servers)}: $dnsServers"
+                showAlert.value = true
+                return false
+            }
+        }
+        else {
+            Config.replaceVariable("dyn_dns", "yes")
+            Config.updateDnsServers(BaresipService.dnsServers)
+        }
+        // Api.net_dns_debug()
+        viewModel.save = true
+    }
+
+    if ((Config.variable("sip_verify_server") == "yes") != viewModel.verifyServer.value) {
+        Config.replaceVariable("sip_verify_server", if (viewModel.verifyServer.value) "yes" else "no")
+        Api.config_verify_server_set(viewModel.verifyServer.value)
+        viewModel.save = true
+    }
+
+    val userAgent = viewModel.userAgent.value.trim()
+    if (userAgent != Config.variable("user_agent")) {
+        if (userAgent != "" && !Utils.checkServerVal(userAgent)) {
+            alertTitle.value = noticeTitle
+            alertMessage.value = "${ctx.getString(R.string.invalid_user_agent)}: " +
+                    userAgent
+            showAlert.value = true
+            return false
+        }
+        if (userAgent != "")
+            Config.replaceVariable("user_agent", userAgent)
+        else
+            Config.removeVariable("user_agent")
+        viewModel.save = true
+        viewModel.restart = true
+    }
+
+    val videoSize = viewModel.videoSize.value.trim()
+    if (videoSize != Config.variable("video_size")) {
+        Config.replaceVariable("video_size", videoSize)
+        Api.config_video_frame_size_set(videoSize.substringBefore("x").toInt(),
+            videoSize.substringAfter("x").toInt())
+        viewModel.save = true
+    }
+
+    val videoFps = viewModel.videoFps.value.trim()
+    if (videoFps != Config.variable("video_fps")) {
+        val fps = videoFps.toIntOrNull()
+        if (fps == null || fps < 10 || fps > 30) {
+            alertTitle.value = noticeTitle
+            alertMessage.value = String.format(ctx.getString(R.string.invalid_fps), fps ?: 0)
+            showAlert.value = true
+            return false
+        }
+        Config.replaceVariable("video_fps", videoFps)
+        Api.config_video_fps_set(fps)
+        viewModel.save = true
+    }
+
+    if ((Config.variable("sip_cuser_random") == "yes") != viewModel.uniqueContactUri.value) {
+        Config.replaceVariable("sip_cuser_random", if (viewModel.uniqueContactUri.value) "yes" else "no")
+        viewModel.save = true
+        viewModel.restart = true
+    }
+
+    val darkTheme = viewModel.darkTheme.value
+    val newDisplayTheme = if (darkTheme)
+        AppCompatDelegate.MODE_NIGHT_YES
+    else
+        AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+    if (Preferences(ctx).displayTheme == AppCompatDelegate.MODE_NIGHT_YES != darkTheme) {
+        Preferences(ctx).displayTheme = newDisplayTheme
+        BaresipService.darkTheme.value = darkTheme
+        AppCompatDelegate.setDefaultNightMode(newDisplayTheme)
+        Config.replaceVariable("dark_theme", if (darkTheme) "yes" else "no")
+        viewModel.save = true
+    }
+
+    val dynamicColors = viewModel.dynamicColors.value
+    if (BaresipService.dynamicColors.value != dynamicColors) {
+        BaresipService.dynamicColors.value = dynamicColors
+        Config.replaceVariable("dynamic_colors", if (dynamicColors) "yes" else "no")
+        viewModel.save = true
+    }
+
+    val colorblind = viewModel.colorblind.value
+    if ((Config.variable("colorblind") == "yes") != colorblind) {
+        Config.replaceVariable("colorblind", if (colorblind) "yes" else "no")
+        BaresipService.colorblind = colorblind
+        UserAgent.updateColorblindStatus()
+        val baresipService = Intent(ctx, BaresipService::class.java)
+        baresipService.action = "Update Notification"
+        ContextCompat.startForegroundService(ctx, baresipService)
+        viewModel.save = true
+    }
+
+    val proximitySensing = viewModel.proximitySensing.value
+    if ((Config.variable("proximity_sensing") == "yes") != proximitySensing) {
+        Config.replaceVariable("proximity_sensing", if (proximitySensing) "yes" else "no")
+        BaresipService.proximitySensing = proximitySensing
+        viewModel.save = true
+    }
+
+    val debug = viewModel.debug.value
+    if ((Config.variable("log_level") == "0") != debug) {
+        val logLevelString = if (debug) "0" else "2"
+        Config.replaceVariable("log_level", logLevelString)
+        Api.log_level_set(logLevelString.toInt())
+        Log.logLevelSet(logLevelString.toInt())
+        viewModel.save = true
+    }
+
+    val sipTrace = if (debug) viewModel.sipTrace.value else false
+    if (BaresipService.sipTrace != sipTrace) {
+        BaresipService.sipTrace = sipTrace
+        Api.uag_enable_sip_trace(sipTrace)
+    }
+
+    if (viewModel.save) Config.save()
+
+    return true
+}
+
+private fun isAppearOnTopPermissionGranted(ctx: Context): Boolean {
+    return Settings.canDrawOverlays(ctx)
+}
+
+private fun addMissingPorts(addressList: String): String {
+    if (addressList == "") return ""
+    var result = ""
+    for (addr in addressList.split(","))
+        result = if (Utils.checkIpPort(addr))
+            "$result,$addr"
+        else {
+            if (Utils.checkIpV4(addr))
+                "$result,$addr:53"
+            else
+                "$result,[$addr]:53"
+        }
+    return result.substring(1)
+}
+
+private fun checkTransportProtocols(transportProtocols: String): Boolean {
+    if (transportProtocols.isEmpty())
+        return true
+    for (protocol in transportProtocols.split(","))
+        if (protocol !in listOf("udp", "tcp", "tls", "ws", "wss"))
+            return false
+    return true
+}
+
+private fun checkDnsServers(dnsServers: String): Boolean {
+    if (dnsServers.isEmpty()) return true
+    for (server in dnsServers.split(","))
+        if (!Utils.checkIpPort(server.trim())) return false
+    return true
+}

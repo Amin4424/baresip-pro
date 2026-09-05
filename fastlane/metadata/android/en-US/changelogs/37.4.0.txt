@@ -1,2 +1,0 @@
-- Fixed crash at network changes
-- New Portuguese (Brazil)) translations

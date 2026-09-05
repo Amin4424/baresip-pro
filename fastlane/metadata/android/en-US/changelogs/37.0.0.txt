@@ -1,3 +1,0 @@
-- Improved selection and ordering of account's audio codecs
-- Due to problems, disabled DNS query cache
-- Migration to Android API 33

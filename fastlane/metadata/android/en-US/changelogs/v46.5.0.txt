@@ -1,2 +1,0 @@
-- Use thread RTP receive mode
-- New Czech and Portuguese translations

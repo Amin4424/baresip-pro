@@ -1,3 +1,0 @@
-- Added Edit button also to Android contact top app bar
-- Use baresip's missed call notification also for missed mobile calls
-- New translations from Weblate (Russian)

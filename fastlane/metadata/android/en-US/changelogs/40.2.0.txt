@@ -1,3 +1,0 @@
-- Added possibility to stop recording playback
-- Added adaptive launcher icon
-- New Spanish translations

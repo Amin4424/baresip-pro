@@ -1,3 +1,0 @@
-- Added Country Code account configuration option
-- Audio related improvements from upstream
-- New Portuguese (Brazil) and Finnish translations

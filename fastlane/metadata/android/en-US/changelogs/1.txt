@@ -1,0 +1,9 @@
+Initial release of Baresip Pro Max v1.0.0:
+- Fluid Jetpack Compose (Material 3) user interface
+- High-definition video calling with Camera2 integration
+- Next-gen video codecs: AV1, H.265 (HEVC), H.264, VP8, and VP9
+- Crystal-clear HD audio (Opus, AMR-WB, G.722, Codec2, PCMA/PCMU)
+- End-to-end media encryption (ZRTP, SRTP, DTLS) and TLS/WSS signaling
+- Ergonomic keypad dialer and one-handed bottom navigation
+- Local call recording and multi-account management
+- Full privacy with zero trackers and zero telemetry

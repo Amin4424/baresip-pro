@@ -1,2 +1,0 @@
-- Added 'Audio Delay' Audio Setting
-- Improved Bluetooth headset connected test

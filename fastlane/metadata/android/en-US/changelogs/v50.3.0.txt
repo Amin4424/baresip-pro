@@ -1,2 +1,0 @@
-- Allow * and # characters in telephone number
-- New translations (Portuguese (Brazil))

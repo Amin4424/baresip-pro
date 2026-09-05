@@ -1,3 +1,0 @@
-- Upstream fix of websocket transport
-- New Portuguese translations
-- Check Outbound Proxy URI transport

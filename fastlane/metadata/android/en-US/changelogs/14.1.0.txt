@@ -1,2 +1,0 @@
-- Improved finding of a contact that matches a SIP URI
-- Toolbar and menu style enhancements

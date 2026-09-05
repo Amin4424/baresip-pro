@@ -8,5 +8,5 @@ Dezvoltarea aplicației baresip este motivată de nevoia de a avea un client
 Android SIP securizat, cu sursă deschisă ce nu depinde de servicii terțe
 proprietare de notificare.
 
-Codul sursă este disponibil la https://github.com/juha-h/baresip-studio unde
+Codul sursă este disponibil la https://github.com/Amin4424/baresip-pro-max unde
 se și pot raporta eventualele probleme.

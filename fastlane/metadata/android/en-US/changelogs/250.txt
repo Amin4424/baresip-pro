@@ -1,2 +1,0 @@
-- Fixed bug in codecs screen
-- New translations (French and Hebrew)

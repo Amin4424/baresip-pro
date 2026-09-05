@@ -1,2 +1,0 @@
-- Added support for reliable provisional response messages (RFC 3262)
-- Added QUIT action to intent receiver

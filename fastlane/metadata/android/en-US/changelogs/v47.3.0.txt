@@ -1,2 +1,0 @@
-- Added 'Video Frames Per Second' setting
-- Show device compatible 'Video Frame Size' setting values

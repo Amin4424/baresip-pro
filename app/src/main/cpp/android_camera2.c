@@ -6,7 +6,7 @@
 #include "logger.h"
 
 #define CAMERA "Camera2"
-#define CLASS_PATH "com/tutpro/baresip/plus/"
+#define CLASS_PATH "io/github/amin4424/baresip/promax/"
 #define CAMERA_CLASS_PATH CLASS_PATH CAMERA
 
 

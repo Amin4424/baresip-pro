@@ -1,3 +1,0 @@
-- Avoid crash if there is no write access to backup destination
-- Conference call related bug fixes and improvements
-- Fixed checking if another call is already active

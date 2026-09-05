@@ -80,7 +80,7 @@ configure<ApplicationExtension> {
             )
         }
     }
-    namespace = "com.tutpro.baresip.plus"
+    namespace = "io.github.amin4424.baresip.promax"
 }
 
 composeCompiler {

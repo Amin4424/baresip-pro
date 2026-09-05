@@ -8,7 +8,6 @@
             <h1><a href="https://github.com/baresip/baresip">Baresip</a>-kirjastoon perustuva
                 SIP-äänipuhelut ja -pikaviestit sekä mobiilipuhelut mahdollistava sovellus</h1>
             <br>
-            <p>Juha Heinanen &lt;jh@tutpro.com&gt;</p>
             <p>Versio %1$s</p>
             <br>
             <h2>Käyttövihjeitä</h2>
@@ -31,13 +30,13 @@
                 <li>Pitkillä kosketuksilla voit myös poistaa puheluita, viestiketjuja, viestejä ja yhteystietoja.</li>
                 <li>Voit lisätä/poistaa yhteystiedon avatar-kuvan koskettamalla yhteystiedon ikonia lyhyesti/pitkästi.</li>
                 <li>Audio-koodekin saa pitkällä kosketuksella käytöön/pois käytöstä.</li>
-                <li>Katso lisätietoja <a href=https://github.com/juha-h/baresip-studio/wiki>Wiki</a>-sivulta.</li>
+                <li>Katso lisätietoja <a href=https://github.com/Amin4424/baresip-pro-max/wiki>Wiki</a>-sivulta.</li>
             </ul>
             <h2>Tietosuoja</h2>
-            <p>Sovelluksen tietosuojakäytäntö on luettavissa <a href="https://raw.githubusercontent.com/juha-h/baresip-studio/master/PrivacyPolicy.txt">täältä</a>.</p>
+            <p>Sovelluksen tietosuojakäytäntö on luettavissa <a href="https://raw.githubusercontent.com/Amin4424/baresip-pro-max/master/PrivacyPolicy.txt">täältä</a>.</p>
             <br>
             <h2>Lähdekoodi</h2>
-            <p>Lähdekoodi on saatavilla <a href=https://github.com/juha-h/baresip-studio>GitHub</a>:ssa,
+            <p>Lähdekoodi on saatavilla <a href=https://github.com/Amin4424/baresip-pro-max>GitHub</a>:ssa,
                 missä voi myös raportoida virheistä.</p>
             <br>
             <h2>Kielikäännökset</h2>
@@ -59,7 +58,6 @@
             <h1><a href="https://github.com/baresip/baresip">Baresip</a>-kirjastoon perustuva
                  videopuhelut ja pikaviestit mahdollistava SIP-sovellus</h1>
             <br>
-            <p>Juha Heinanen &lt;jh@tutpro.com&gt;</p>
             <p>Versio %1$s</p>
             <br>
             <h2>Käyttövihjeitä</h2>
@@ -81,7 +79,7 @@
                 <li>Pitkillä kosketuksilla voit myös poistaa puheluita, viestiketjuja, viestejä ja yhteystietoja.</li>
                 <li>Voit lisätä/poistaa yhteystiedon avatar-kuvan koskettamalla yhteystiedon ikonia lyhyesti/pitkästi.</li>
                 <li>Audio- ja video-koodekin saa pitkällä kosketuksella käytöön/pois käytöstä.</li>
-                <li>Katso lisätietoja <a href=https://github.com/juha-h/baresip-studio/wiki>Wiki</a>-sivulta.</li>
+                <li>Katso lisätietoja <a href=https://github.com/Amin4424/baresip-pro-max/wiki>Wiki</a>-sivulta.</li>
             </ul>
             <h2>Tunnetut ongelmat</h2>
             <ul>
@@ -89,9 +87,9 @@
             </ul>
             <h2>Tietosuoja</h2>
             <p>Sovelluksen tietosuojakäytäntö on luettavissa
-                <a href="https://raw.githubusercontent.com/juha-h/baresip-studio/video/PrivacyPolicy.txt">täältä</a>.</p>
+                <a href="https://raw.githubusercontent.com/Amin4424/baresip-pro-max/master/PrivacyPolicy.txt">täältä</a>.</p>
             <h2>Lähdekoodi</h2>
-            <p>Lähdekoodi on saatavilla <a href=https://github.com/juha-h/baresip-studio>GitHub</a>:ssa,
+            <p>Lähdekoodi on saatavilla <a href=https://github.com/Amin4424/baresip-pro-max>GitHub</a>:ssa,
                 missä voi myös raportoida virheistä.</p>
             <br>
             <h2>Kielikäännökset</h2>
@@ -499,7 +497,7 @@
         käyttöön. Käynnistä nyt?
     </string>
     <string name="consent_request">Suostumuspyyntö</string>
-    <string name="contacts_consent">Jos Androidin yhteystiedot on valittu, voit käyttää niitä puheluissa ja viesteissä SIP ja tel URI:en ohella. Baresip ei talleta Androidin yhteystietoja eikä jaa niitä kenellekään. Jotta Baresip saisi käyttöönsä Androidin yhteystiedot, Google vaatii, että annat siihen suostumuksen hyväksymällä Baresip-sovelluksen <a href="https://github.com/juha-h/baresip-studio/blob/master/PrivacyPolicy.txt">yksityisyyskäytännöt</a>.</string>
+    <string name="contacts_consent">Jos Androidin yhteystiedot on valittu, voit käyttää niitä puheluissa ja viesteissä SIP ja tel URI:en ohella. Baresip ei talleta Androidin yhteystietoja eikä jaa niitä kenellekään. Jotta Baresip saisi käyttöönsä Androidin yhteystiedot, Google vaatii, että annat siihen suostumuksen hyväksymällä Baresip-sovelluksen <a href="https://github.com/Amin4424/baresip-pro-max/blob/master/PrivacyPolicy.txt">yksityisyyskäytännöt</a>.</string>
     <!-- Contact Activity -->
     <string name="new_contact">Uusi yhteystieto</string>
     <string name="contact_name">Nimi</string>

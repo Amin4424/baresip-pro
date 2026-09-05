@@ -1,0 +1,1661 @@
+package io.github.amin4424.baresip.promax
+
+import android.Manifest
+import android.annotation.SuppressLint
+import android.app.Activity
+import android.app.KeyguardManager
+import android.app.role.RoleManager
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.ContentResolver
+import android.content.ContentValues
+import android.content.Context
+import android.content.Context.ROLE_SERVICE
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
+import android.graphics.Color
+import android.media.AudioAttributes
+import android.hardware.camera2.CameraAccessException
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
+import android.media.MediaPlayer
+import android.media.audiofx.AcousticEchoCanceler
+import android.media.audiofx.AutomaticGainControl
+import android.media.audiofx.NoiseSuppressor
+import android.net.Uri
+import android.net.wifi.WifiManager
+import android.os.Build
+import android.os.Bundle
+import android.os.Environment
+import android.provider.DocumentsContract
+import android.provider.MediaStore
+import android.provider.OpenableColumns
+import android.telecom.PhoneAccountHandle
+import android.telecom.TelecomManager
+import android.telephony.SubscriptionManager
+import android.telephony.TelephonyManager
+import android.text.format.DateUtils
+import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
+import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.toColorInt
+import androidx.core.net.toUri
+import androidx.core.text.isDigitsOnly
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ProcessLifecycleOwner
+import io.github.amin4424.baresip.promax.Call.Companion.inCall
+import java.io.BufferedInputStream
+import java.io.BufferedOutputStream
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileNotFoundException
+import java.io.FileOutputStream
+import java.io.IOException
+import java.io.InputStream
+import java.io.ObjectInputStream
+import java.io.ObjectOutputStream
+import java.io.RandomAccessFile
+import java.io.Serializable
+import java.lang.reflect.Method
+import java.net.InetAddress
+import java.net.NetworkInterface
+import java.net.SocketException
+import java.security.KeyStore
+import java.security.SecureRandom
+import java.security.cert.CertificateException
+import java.security.cert.CertificateFactory
+import java.security.cert.X509Certificate
+import java.text.DateFormat
+import java.util.*
+import java.util.concurrent.Executor
+import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
+import java.util.zip.ZipOutputStream
+import javax.crypto.Cipher
+import javax.crypto.SecretKeyFactory
+import javax.crypto.spec.IvParameterSpec
+import javax.crypto.spec.PBEKeySpec
+import javax.crypto.spec.SecretKeySpec
+import javax.net.ssl.HttpsURLConnection
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManagerFactory
+import javax.net.ssl.X509TrustManager
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+
+object Utils {
+
+    val BARESIP_FILES = listOf("accounts", "call_history", "blocked", "blocking", "config",
+        "contacts", "messages", "uuid", "gzrtp.zid", "cert.pem", "ca_certs.crt")
+
+    fun getNameValue(string: String, name: String): ArrayList<String> {
+        val lines = string.split("\n")
+        val result = ArrayList<String>()
+        for (line in lines)
+            if (line.startsWith(name))
+                result.add((line.substring(name.length).trim()).split(" \t")[0])
+        return result
+    }
+
+    fun removeLinesStartingWithString(lines: String, string: String): String {
+        var result = ""
+        for (line in lines.split("\n"))
+            if (!line.startsWith(string) && (line.isNotEmpty())) result += line + "\n"
+        return result
+    }
+
+    fun uriHostPart(uri: String): String {
+        return if (uri.contains("@"))
+            uri.substringAfter("@")
+                .substringBefore(":")
+                .substringBefore(";")
+                .substringBefore("?")
+                .substringBefore(">")
+        else {
+            val parts = uri.split(":")
+            when (parts.size) {
+                2 -> parts[1].substringBefore(";")
+                        .substringBefore("?")
+                        .substringBefore(">")
+                3 -> parts[1]
+                else -> ""
+            }
+        }
+    }
+
+    fun uriUserPart(uri: String): String {
+        return if (uri.contains("@"))
+            uri.substringAfter(":").substringBefore("@")
+        else if (uri.startsWith("tel:"))
+            uri.substringAfter(":").substringBefore(";")
+        else
+            ""
+    }
+
+    fun uriMatch(firstUri: String, secondUri: String): Boolean {
+        val first = uriUnescape(firstUri.removePrefix("<").removeSuffix(">"))
+        val second = uriUnescape(secondUri.removePrefix("<").removeSuffix(">"))
+        if (first.equals(second, ignoreCase = true)) return true
+        val mobileAor = "sip:mobile@pstn"
+        if (first.startsWith("tel:", ignoreCase = true)) {
+            if (first.equals(second, ignoreCase = true)) return true
+            val firstUser = uriUserPart(first)
+            if (second == mobileAor && BaresipService.mobileNumber != "")
+                return firstUser == BaresipService.mobileNumber || firstUser == uriUserPart(BaresipService.mobileNumber)
+            return firstUser.equals(uriUserPart(second), ignoreCase = true)
+        }
+        if (first.startsWith("sip:", ignoreCase = true)) {
+            val firstUser = uriUserPart(first)
+            val firstHost = uriHostPart(first)
+            if (second == mobileAor && BaresipService.mobileNumber != "")
+                return firstUser == BaresipService.mobileNumber || firstUser == uriUserPart(BaresipService.mobileNumber)
+            return firstUser.equals(uriUserPart(second), ignoreCase = true) &&
+                    firstHost.equals(uriHostPart(second), ignoreCase = true)
+        }
+        return false
+    }
+
+    private fun uriParams(uri: String): List<String> {
+        val params = uri.split(";")
+        return if (params.size == 1) listOf() else params.subList(1, params.size)
+    }
+
+    fun friendlyUri(ctx: Context, uri: String, account: Account, e164Check: Boolean = true,
+                    includeLabel: Boolean = true, unique: Boolean = false): String {
+        return friendlyUri(uri, account, e164Check, includeLabel, unique,
+            ctx.getString(R.string.anonymous), ctx.getString(R.string.unknown))
+    }
+
+    fun friendlyUri(uri: String, account: Account, e164Check: Boolean = true,
+                    includeLabel: Boolean = true, unique: Boolean = false,
+                    anonymous: String = "Anonymous", unknown: String = "Unknown"): String {
+        var u = Contact.contactName(uri, includeLabel, unique)
+        if (u != uri)
+            return u
+        if (e164Check) {
+            val e164Uri = e164Uri(uri, account.countryCode)
+            u = Contact.contactName(e164Uri, includeLabel, unique)
+            if (u != e164Uri)
+                return u
+        }
+        u = u.replace("%23", "#")
+        if (u.contains("@")) {
+            val user = uriUserPart(u)
+            val host = uriHostPart(u)
+            val params = uriParams(u).filter{it != "transport=udp"}
+            return if (host == aorDomain(account.aor) || params.contains("user=phone"))
+                user
+            else if (host == "anonymous.invalid")
+                anonymous
+            else if (host == "unknown.invalid")
+                unknown
+            else if (params.isEmpty())
+                "$user@$host"
+            else
+                "$user@$host;" + params.joinToString(";")
+        }
+        if (u.startsWith("<") && u.endsWith(">"))
+            u = u.substring(1).substringBeforeLast(">")
+        if (u.startsWith("tel:", ignoreCase = true))
+            u = u.substring(4)
+        u = u.substringBefore("?")
+        u = u.replace(":5060", "")
+        u = u.replace(";transport=udp", "", true)
+        return u
+    }
+
+    fun e164Uri(uriText: String, countryCode: String): String {
+        val uri = uriUnescape(uriText)
+        val scheme = uri.take(4)
+        val userPart = uriUserPart(uri)
+        val digitsOnlyUserPart = userPart.filter { it.isDigit() }
+        return if (digitsOnlyUserPart.isNotEmpty() && digitsOnlyUserPart.length == userPart.filterNot { it == ' ' || it == '-' || it == '(' || it == ')' || it == '+' }.length)
+            when {
+                userPart.startsWith("+") -> uri
+                userPart.startsWith("00") -> uri.replace("$scheme$userPart",
+                    scheme + "+" + userPart.substring(2))
+                countryCode == "" -> uri
+                userPart.startsWith("0") -> uri.replace("${scheme}0",
+                    "$scheme$countryCode")
+                else -> uri.replace(scheme, "$scheme$countryCode")
+            }
+        else
+            uri
+    }
+
+    fun uriComplete(uri: String, aor: String): String {
+        val res = if (!uri.startsWith("sip:")) "sip:$uri" else uri
+        return if (checkUriUser(uri)) "$res@${aorDomain(aor)}" else res
+    }
+
+    private fun String.replace(vararg pairs: Pair<String, String>): String =
+            pairs.fold(this) { acc, (old, new) -> acc.replace(old, new, ignoreCase = true) }
+
+    fun uriUnescape(uri: String): String {
+        return uri.replace("%2B" to "+", "%3A" to ":", "%3B" to ";", "%40" to "@", "%3D" to "=",
+            "%23" to "#", "%2A" to "*", "%20" to "")
+    }
+
+    fun aorDomain(aor: String): String {
+        return uriHostPart(aor)
+    }
+
+    fun plainAor(aor: String): String {
+        return uriUserPart(aor) + "@" + uriHostPart(aor)
+    }
+
+    fun checkAor(aor: String): Boolean {
+        if (!checkSipUri(aor)) return false
+        val params = uriParams(aor)
+        val transports = arrayOf("transport=udp", "transport=tcp", "transport=tls", "transport=wss")
+        return params.isEmpty() || ((params.size == 1) && params[0] in transports)
+    }
+
+    private fun checkTransport(transport: String, transports: Set<String>): Boolean {
+        return transport.split("=")[0] == "transport" && transport.split("=")[1].lowercase() in transports
+    }
+
+    fun checkStunUri(uri: String): Boolean {
+        if (uri.substringBefore(":").lowercase() !in setOf("stun", "stuns", "turn", "turns"))
+            return false
+        return checkHostPort(uri.substringAfter(":").substringBefore("?")) &&
+                (uri.indexOf("?") == -1 || checkTransport(uri.substringAfter("?"), setOf("udp", "tcp")))
+    }
+
+    fun checkIpV4(ip: String): Boolean {
+        return Regex("^(([0-1]?[0-9]{1,2}\\.)|(2[0-4][0-9]\\.)|(25[0-5]\\.)){3}(([0-1]?[0-9]{1,2})|(2[0-4][0-9])|(25[0-5]))$").matches(ip)
+    }
+
+    private fun checkIpV6(ip: String): Boolean {
+        return Regex("^(([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4})$").matches(ip)
+    }
+
+    private fun checkIpv6InBrackets(bracketedIp: String): Boolean {
+        return bracketedIp.startsWith("[") && bracketedIp.endsWith("]") &&
+                checkIpV6(bracketedIp.substring(1, bracketedIp.length - 2))
+    }
+
+    fun checkUriUser(user: String): Boolean {
+        val escaped = """%([\dABCDEFabcdef]){2}""".toRegex()
+        escaped.replace(user, "").forEach {
+            if (!(it.isLetterOrDigit() || "-_.!~*\'()&=+$,;?/".contains(it))) return false }
+        return user.isNotEmpty() && !checkIpV4(user) && !checkIpV6(user)
+    }
+
+    fun checkDomain(domain: String): Boolean {
+        val parts = domain.split(".")
+        for (p in parts)
+            if (p.endsWith("-") || p.startsWith("-") ||
+                    !Regex("^[-a-zA-Z0-9]+$").matches(p))
+                return false
+        return true
+    }
+
+    private fun checkPort(port: String): Boolean {
+        val number = port.toIntOrNull() ?: return false
+        return (number > 0) && (number < 65536)
+    }
+
+    fun checkIpPort(ipPort: String): Boolean {
+        return if (ipPort.startsWith("["))
+            checkIpv6InBrackets(ipPort.substringBeforeLast(":")) &&
+                    checkPort(ipPort.substringAfterLast(":"))
+        else
+            checkIpV4(ipPort.substringBeforeLast(":")) &&
+                    checkPort(ipPort.substringAfterLast(":"))
+    }
+
+    private fun checkDomainPort(domainPort: String): Boolean {
+        return checkDomain(domainPort.substringBeforeLast(":")) &&
+                checkPort(domainPort.substringAfterLast(":"))
+    }
+
+    private fun checkHostPort(hostPort: String): Boolean {
+        return checkIpV4(hostPort) || checkIpv6InBrackets(hostPort) || checkDomain(hostPort) ||
+                checkIpPort(hostPort) || checkDomainPort(hostPort)
+    }
+
+    private fun checkParams(params: String): Boolean {
+        for (param in params.split(";"))
+            if (!checkParam(param)) return false
+        return true
+    }
+
+    private fun checkParam(param: String): Boolean {
+        val nameValue = param.split("=")
+        if (nameValue.size == 1)
+            return checkParamChars(nameValue[0])
+        if (nameValue.size == 2) {
+            if (nameValue[0] == "transport")
+                return setOf("udp", "tcp", "tls", "wss").contains(nameValue[1].lowercase())
+            return checkParamChars(nameValue[1])
+        }
+        return false
+    }
+
+    private fun checkParamChars(s: String): Boolean {
+        // Does not currently allow escaped characters
+        val allowed = "[]/:&+$-_.!~*'()"
+        for (c in s)
+            if (!allowed.contains(c) && !c.isLetterOrDigit())
+                return false
+        return true
+    }
+
+    fun paramValue(params: String, name: String): String {
+        if (params == "") return ""
+        for (p in params.split(";")) {
+            val param = p.trim()
+            if (param.substringBefore("=") == name) return param.substringAfter("=")
+        }
+        return ""
+    }
+
+    fun paramExists(params: String, name: String): Boolean {
+        for (p in params.split(";")) {
+            val param = p.trim()
+            if (param.substringBefore("=") == name) return true
+        }
+        return false
+    }
+
+    fun checkHostPortParams(hpp: String) : Boolean {
+        val restParams = hpp.split(";", limit = 2)
+        return if (restParams.size == 1)
+            checkHostPort(restParams[0])
+        else
+            checkHostPort(restParams[0]) && checkParams(restParams[1])
+    }
+
+    private fun checkSipUri(uri: String): Boolean {
+        return if (uri.startsWith("sip:")) {
+            val userRest = uri.substring(4).split("@")
+            when (userRest.size) {
+                1 ->
+                    checkHostPortParams(userRest[0])
+                2 ->
+                    checkUriUser(userRest[0]) && checkHostPortParams(userRest[1])
+                else -> false
+            }
+        }
+        else
+            false
+    }
+
+    fun isTelNumber(no: String): Boolean {
+        return no.isNotEmpty() && Regex("^[0-9- (),*#+]{1,32}$").matches(no)
+    }
+
+    fun isTelUri(uri: String): Boolean {
+        return uri.startsWith("tel:") && isTelNumber(uri.substring(4))
+    }
+
+    fun isUssd(uri: String): Boolean {
+        val u = uriUserPart(uri)
+        // Must start with * or # and must end with #, but exclude "Secret Code" pattern (*#*#...#*#*)
+        return (u.startsWith("*") || u.startsWith("#")) && u.endsWith("#") && !u.startsWith("*#*#")
+    }
+
+    fun checkUri(uri: String): Boolean {
+        return checkSipUri(uri) || isTelUri(uri)
+    }
+
+    fun telToSip(telUri: String, account: Account): String {
+        val hostPart = if (account.telProvider != "")
+            account.telProvider
+        else
+            aorDomain(account.aor)
+        return "sip:" + telUri.substring(4)
+            .filterNot{setOf('-', ' ', '(', ')').contains(it)}
+            .replace("#", "%23") +
+                "@" + hostPart + ";user=phone"
+    }
+
+    fun sipToTel(sipUri: String): String {
+        if (sipUri.contains(";user=phone")) {
+            val user = uriUserPart(sipUri)
+            if (user != "")
+                return "tel:${user.replace("%23", "#")}"
+        }
+        return sipUri
+    }
+
+    fun checkName(name: String): Boolean {
+        return name.isNotEmpty() && name == String(name.toByteArray(), Charsets.UTF_8) &&
+                name.lines().size == 1 && !name.contains('"')
+    }
+
+    fun checkCountryCode(cc: String): Boolean {
+        return cc.startsWith("+") && cc.length > 1 && cc.length < 5 &&
+                cc.substring(1).isDigitsOnly() && cc[1] != '0'
+    }
+
+    fun checkServerVal(server: String): Boolean {
+        val parts = server.replace(Regex("[(][^()\\\\]+[)]"), "")
+            .trim().split("\\s+".toRegex())
+        for (part in parts)
+            if (!checkProduct(part))
+                return false
+        return true
+    }
+
+    private fun checkProduct(product: String): Boolean {
+        val parts = product.split("/", limit = 2)
+        return if (parts.count() == 2)
+            checkToken(parts[0]) && checkToken(parts[1])
+        else
+            checkToken(parts[0])
+    }
+
+    private fun checkToken(token: String): Boolean {
+        return Regex("^[-a-zA-Z0-9.!%*_+`'~]+$").matches(token)
+    }
+
+    @Suppress("unused")
+    fun checkIfName(name: String): Boolean {
+        if ((name.length < 2) || !name.first().isLetter()) return false
+        for (c in name)
+            if (!c.isLetterOrDigit()) return false
+        return true
+    }
+
+    fun implode(list: List<String>, sep: String): String {
+        var res = ""
+        for (s in list)
+            res = if (res == "") s else res + sep + s
+        return res
+    }
+
+    fun unaccent(input: String): String {
+        val normalized = java.text.Normalizer.normalize(input, java.text.Normalizer.Form.NFD)
+        return "\\p{InCombiningDiacriticalMarks}+".toRegex().replace(normalized, "")
+    }
+
+    fun buildAnnotatedStringWithHighlight(name: String, query: String): AnnotatedString {
+        val normalizedName = unaccent(name)
+        val normalizedQuery = unaccent(query)
+        val startIndex = normalizedName.indexOf(normalizedQuery, ignoreCase = true)
+        return if (startIndex == -1)
+            buildAnnotatedString { append(name) }
+        else
+            buildAnnotatedString {
+                append(name.take(startIndex))
+                withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                    append(name.drop(startIndex).take(normalizedQuery.length))
+                }
+                append(name.drop(startIndex + normalizedQuery.length))
+            }
+    }
+
+    fun isVisible(): Boolean {
+        return ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+    }
+
+    fun isHotSpotOn(wm: WifiManager): Boolean {
+        try {
+            val method: Method = wm.javaClass.getDeclaredMethod("isWifiApEnabled")
+            method.isAccessible = true
+            return method.invoke(wm) as Boolean
+        } catch (_: Throwable) {
+        }
+        return false
+    }
+
+    fun hotSpotAddresses(): Map<String, String> {
+        val result = mutableMapOf<String, String>()
+        try {
+            val interfaces: Enumeration<NetworkInterface> = NetworkInterface.getNetworkInterfaces()
+            while (interfaces.hasMoreElements()) {
+                val iface: NetworkInterface = interfaces.nextElement()
+                val ifName = iface.name
+                Log.d(TAG, "Found interface with name $ifName")
+                if (ifName.startsWith("ap") || ifName.contains("wlan")) {
+                    val addresses: Enumeration<InetAddress> = iface.inetAddresses
+                    while (addresses.hasMoreElements()) {
+                        val inetAddress: InetAddress = addresses.nextElement()
+                        if (inetAddress.isSiteLocalAddress)
+                            result[inetAddress.hostAddress!!] = ifName
+                    }
+                    if (result.isNotEmpty()) return result
+                }
+            }
+        } catch (ex: SocketException) {
+            Log.e(TAG, "hotSpotAddresses SocketException: $ex")
+        } catch (ex: NullPointerException) {
+            Log.e(TAG, "hotSpotAddresses NullPointerException: $ex")
+        }
+        return result
+    }
+
+    fun checkPermissions(ctx: Context, permissions: Array<String>) : Boolean {
+        for (p in permissions)
+            if (ContextCompat.checkSelfPermission(ctx, p) != PackageManager.PERMISSION_GRANTED) {
+                Log.d(TAG, "Permission $p is denied")
+                return false
+            }
+            else
+                Log.d(TAG, "Permission $p is granted")
+        return true
+    }
+
+    fun isCameraAvailable(ctx: Context): Boolean {
+        return BaresipService.supportedCameras &&
+                ContextCompat.checkSelfPermission(ctx, Manifest.permission.CAMERA) ==
+                PackageManager.PERMISSION_GRANTED
+    }
+
+    @Suppress("unused")
+    fun copyToClipboard(ctx: Context, text: String) {
+        val clipboard = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = ClipData.newPlainText("text", text)
+        clipboard.setPrimaryClip(clip)
+        Toast.makeText(ctx, ctx.getString(R.string.copied_to_clipboard), Toast.LENGTH_SHORT).show()
+    }
+
+    fun copyAssetToFile(context: Context, asset: String, path: String) {
+        try {
+            context.applicationContext.assets.open(asset).use { `is` ->
+                FileOutputStream(path).use { os ->
+                    val buffer = ByteArray(512)
+                    var byteRead: Int = `is`.read(buffer)
+                    while (byteRead != -1) {
+                        os.write(buffer, 0, byteRead)
+                        byteRead = `is`.read(buffer)
+                    }
+                }
+            }
+        } catch (e: IOException) {
+            Log.e(TAG, "Failed to copy asset '$asset' to file: $e")
+        }
+    }
+
+    fun deleteFile(file: File) {
+        if (file.exists())
+            try {
+                file.delete()
+            } catch (e: IOException) {
+                Log.e(TAG, "Could not delete file ${file.absolutePath}: ${e.message}")
+            }
+    }
+
+    fun deleteFile(ctx: Context, uri: Uri): Boolean {
+        val contentResolver: ContentResolver = ctx.contentResolver
+        try {
+            if (DocumentsContract.isDocumentUri(ctx, uri)) {
+                if (DocumentsContract.deleteDocument(contentResolver, uri)) {
+                    Log.d(TAG, "File deleted successfully: $uri")
+                    return true
+                }
+                else {
+                    Log.d(TAG, "File not found or could not be deleted: $uri")
+                    return false
+                }
+            }
+            else {
+                Log.d(TAG, "Uri is not a document uri: $uri")
+                return false
+            }
+        } catch (e: UnsupportedOperationException) {
+            Log.w(TAG, "Error deleting file $uri: $e")
+            return false
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deleting file $uri: $e")
+            return false
+        }
+    }
+
+    fun getFileContents(filePath: String): ByteArray? {
+        return try {
+            File(filePath).readBytes()
+        } catch (e: FileNotFoundException) {
+            Log.e(TAG, "File '$filePath' not found", e)
+            null
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to read file '$filePath'", e)
+            null
+        }
+    }
+
+    fun putFileContents(filePath: String, contents: ByteArray): Boolean {
+        try {
+            File(filePath).writeBytes(contents)
+        }
+        catch (e: IOException) {
+            Log.e(TAG, "Failed to write file '$filePath': $e")
+            return false
+        }
+        return true
+    }
+
+    fun File.copyInputStreamToFile(inputStream: InputStream): Boolean {
+        try {
+            this.outputStream().use { fileOut -> inputStream.copyTo(fileOut) }
+            return true
+        }
+        catch (e: IOException) {
+            Log.e(TAG, "Failed to write file '${this.absolutePath}': $e")
+        }
+        return false
+    }
+
+    @RequiresApi(29)
+    fun selectInputFile(request: ActivityResultLauncher<Intent>) {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+            putExtra(DocumentsContract.EXTRA_INITIAL_URI, MediaStore.Downloads.EXTERNAL_CONTENT_URI)
+        }
+        request.launch(intent)
+    }
+
+    @RequiresApi(29)
+    @Suppress("unused")
+    fun selectOutputFile(title: String) {
+        Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "application/octet-stream"
+            putExtra(Intent.EXTRA_TITLE, title)
+            putExtra(DocumentsContract.EXTRA_INITIAL_URI, MediaStore.Downloads.EXTERNAL_CONTENT_URI)
+        }
+    }
+
+    fun downloadsPath(fileName: String): String {
+        return Environment.getExternalStoragePublicDirectory(
+            Environment.DIRECTORY_DOWNLOADS).path + "/$fileName"
+    }
+
+    fun screenshotsPath(fileName: String): String {
+        val dcimPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM).path + "/Screenshots"
+        if (File(dcimPath).exists()) return "$dcimPath/$fileName"
+        val picturesPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).path + "/Screenshots"
+        if (File(picturesPath).exists()) return "$picturesPath/$fileName"
+        // Default to DCIM/Screenshots and ensure it exists
+        val dir = File(dcimPath)
+        if (!dir.exists()) dir.mkdirs()
+        return "$dcimPath/$fileName"
+    }
+
+    fun fileNameOfUri(ctx: Context, uri: Uri): String {
+        val cursor = ctx.contentResolver.query(uri, null, null, null, null)
+        var name = ""
+        if (cursor != null) {
+            val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            cursor.moveToFirst()
+            name = cursor.getString(index) ?: ""
+            cursor.close()
+        }
+        return if (name == "")
+            "$uri".substringAfterLast("/")
+        else
+            name
+    }
+
+    class Crypto(val salt: ByteArray, val iter: Int, val iv: ByteArray, val data: ByteArray): Serializable {
+        companion object {
+            @Suppress("unused")
+            const val serialVersionUID: Long = -29238082928391L
+        }
+    }
+
+    private fun encrypt(content: ByteArray, password: CharArray): ByteArray? {
+        fun intToByteArray(int: Int): ByteArray {
+            val bytes = ByteArray(2)
+            bytes[0] = (int shr 0).toByte()
+            bytes[1] = (int shr 8).toByte()
+            return bytes
+        }
+        try {
+            val sr = SecureRandom()
+            val salt = ByteArray(128)
+            sr.nextBytes(salt)
+            val iterationCount = Random().nextInt(1024) + 512
+            val pbKeySpec = PBEKeySpec(password, salt, iterationCount, 128)
+            val secretKeyFactory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1")
+            val keyBytes = secretKeyFactory.generateSecret(pbKeySpec).encoded
+            val keySpec = SecretKeySpec(keyBytes, "AES")
+            val ivRandom = SecureRandom()
+            val iv = ByteArray(16)
+            ivRandom.nextBytes(iv)
+            val ivSpec = IvParameterSpec(iv)
+            val cipher = Cipher.getInstance("AES/CBC/PKCS7Padding")
+            cipher.init(Cipher.ENCRYPT_MODE, keySpec, ivSpec)
+            val cipherData = cipher.doFinal(content)
+            val res = ByteArray(128 + 2 + 16 + cipherData.size)
+            salt.copyInto(res, 0)
+            intToByteArray(iterationCount).copyInto(res, salt.size)
+            iv.copyInto(res, salt.size + 2)
+            cipherData.copyInto(res, salt.size + 2 + iv.size)
+            return res
+        } catch (e: Exception) {
+            Log.e(TAG, "Encrypt failed", e)
+        }
+        return null
+    }
+
+    private fun decrypt(content: ByteArray, password: CharArray): ByteArray? {
+        fun byteArrayToInt(bytes: ByteArray) : Int {
+            return (bytes[1].toInt() and 0xff shl 8) or (bytes[0].toInt() and 0xff)
+        }
+        try {
+            val salt = content.copyOfRange(0, 128)
+            val iterationCount = byteArrayToInt(content.copyOfRange(128, 130))
+            val iv = content.copyOfRange(130, 146)
+            val data = content.copyOfRange(146, content.size)
+            val pbKeySpec = PBEKeySpec(password, salt, iterationCount, 128)
+            val secretKeyFactory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1")
+            val keyBytes = secretKeyFactory.generateSecret(pbKeySpec).encoded
+            val keySpec = SecretKeySpec(keyBytes, "AES")
+            val cipher = Cipher.getInstance("AES/CBC/PKCS7Padding")
+            val ivSpec = IvParameterSpec(iv)
+            cipher.init(Cipher.DECRYPT_MODE, keySpec, ivSpec)
+            return cipher.doFinal(data)
+        } catch (e: Exception) {
+            Log.e(TAG, "Decrypt failed", e)
+        }
+        return null
+    }
+
+    private fun decryptOld(obj: Crypto, password: CharArray): ByteArray? {
+        var plainData: ByteArray? = null
+        try {
+            val pbKeySpec = PBEKeySpec(password, obj.salt, obj.iter, 128)
+            val secretKeyFactory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1")
+            val keyBytes = secretKeyFactory.generateSecret(pbKeySpec).encoded
+            val keySpec = SecretKeySpec(keyBytes, "AES")
+            val cipher = Cipher.getInstance("AES/CBC/PKCS7Padding")
+            val ivSpec = IvParameterSpec(obj.iv)
+            cipher.init(Cipher.DECRYPT_MODE, keySpec, ivSpec)
+            plainData = cipher.doFinal(obj.data)
+        } catch (e: Exception) {
+            Log.e(TAG, "Decrypt failed", e)
+        }
+        return plainData
+    }
+
+    fun encryptToUri(ctx: Context, uri: Uri, content: ByteArray, password: String): Boolean {
+        val obj = if (password == "") content else encrypt(content, password.toCharArray())
+        try {
+            val stream = ctx.contentResolver.openOutputStream(uri)
+            if (stream != null)
+                ObjectOutputStream(stream).use { it.writeObject(obj) }
+            else {
+                Log.w(TAG, "encryptToUri: could not open output stream")
+                return false
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "encryptToUri failed: $e")
+            return false
+        }
+        return true
+    }
+
+    fun decryptFromUri(ctx: Context, uri: Uri, password: String): ByteArray? {
+        var plainData: ByteArray? = null
+        var stream: InputStream
+        try {
+            stream = ctx.contentResolver.openInputStream(uri)
+                ?: return null
+        } catch(e: Exception) {
+            Log.w(TAG, "decryptFromUri could not open stream: $e")
+            return null
+        }
+        try {
+            ObjectInputStream(stream).use {
+                val content = it.readObject() as ByteArray
+                plainData = if (password == "") content else decrypt(content, password.toCharArray())
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "decryptFromUri as ByteArray failed: $e")
+            try {
+                ctx.contentResolver.openInputStream(uri)?.use { newStream ->
+                    ObjectInputStream(newStream).use {
+                        val obj = it.readObject() as Crypto
+                        plainData = decryptOld(obj, password.toCharArray())
+                    }
+                }
+            } catch (e2: Exception) {
+                Log.w(TAG, "decryptFromUri as Crypto failed: $e2")
+            }
+        }
+        return plainData
+    }
+
+    fun zip(fileNames: ArrayList<String>, zipFileName: String): Boolean {
+        val zipFilePath = BaresipService.filesPath + "/" + zipFileName
+        try {
+            ZipOutputStream(BufferedOutputStream(FileOutputStream(zipFilePath))).use { out ->
+                val data = ByteArray(1024)
+                for (fileName in fileNames) {
+                    val filePath = BaresipService.filesPath + "/" + fileName
+                    if (File(filePath).exists())
+                        FileInputStream(filePath).use { fi ->
+                            BufferedInputStream(fi).use { origin ->
+                                val entry = ZipEntry(fileName)
+                                out.putNextEntry(entry)
+                                while (true) {
+                                    val readBytes = origin.read(data)
+                                    if (readBytes == -1) break
+                                    out.write(data, 0, readBytes)
+                                }
+                            }
+                        }
+                }
+            }
+        } catch (e: IOException) {
+            Log.e(TAG, "Failed to zip file '$zipFilePath': $e")
+            return false
+        }
+        return true
+    }
+
+    fun unZip(zipFilePath: String): Boolean {
+        val zipFiles = mutableListOf<String>()
+        try {
+            ZipFile(File(zipFilePath)).use { zip ->
+                zip.entries().asSequence().forEach { entry ->
+                    val entryName = if (entry.name.startsWith("/"))
+                        entry.name.substringAfterLast("/")
+                    else
+                        entry.name
+                    zipFiles.add(entryName)
+                    zip.getInputStream(entry).use { input ->
+                        File(BaresipService.filesPath + "/" + entryName).outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                }
+            }
+        } catch (e: IOException) {
+            Log.e(TAG, "Failed to unzip file '$zipFilePath': $e")
+            return false
+        }
+        (BARESIP_FILES - zipFiles.toSet()).iterator().forEach {
+            deleteFile(File(BaresipService.filesPath, it))
+        }
+        return true
+    }
+
+    @Suppress("unused")
+    fun dumpIntent(intent: Intent) {
+        val bundle: Bundle = intent.extras ?: return
+        val keys = bundle.keySet()
+        val it = keys.iterator()
+        Log.d(TAG, "Dumping intent start")
+        while (it.hasNext()) {
+            val key = it.next()
+            Log.d(TAG, "[" + key + "=" + bundle.getBundle(key) + "]")
+        }
+        Log.d(TAG, "Dumping intent finish")
+    }
+
+    fun randomColor(): Int {
+        return Color.argb(
+            255,
+            kotlin.random.Random.nextInt(256),
+            kotlin.random.Random.nextInt(256),
+            kotlin.random.Random.nextInt(256)
+        )
+    }
+
+    fun requestDismissKeyguard(activity: Activity) {
+        val keyguardManager = activity.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+        keyguardManager.requestDismissKeyguard(activity, null)
+    }
+
+    fun supportedCameras(ctx: Context): Map<String, Int> {
+        val cameras = mutableMapOf<String, Int>()
+        val cm = ctx.getSystemService(AppCompatActivity.CAMERA_SERVICE) as CameraManager
+        try {
+            for (id in cm.cameraIdList) {
+                val chars = cm.getCameraCharacteristics(id)
+                val level = chars.get(CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL)
+                if (level in setOf(CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_3,
+                        CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_FULL,
+                        CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_LIMITED,
+                        CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY)
+                    ) {
+                        val dir = chars.get(CameraCharacteristics.LENS_FACING)
+                        if (dir != null) cameras[id] = dir
+                }
+            }
+        } catch (e: CameraAccessException) {
+            Log.e(TAG, "Could not get supportedCameras: ${e.printStackTrace()}")
+        }
+        return cameras
+    }
+
+    @Throws(IOException::class)
+    fun savePicture(ctx: Context, bitmap: Bitmap, name: String) {
+        if (Build.VERSION.SDK_INT >= 29) {
+            val contentValues = ContentValues()
+            contentValues.put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+            contentValues.put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
+            contentValues.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES)
+            val resolver: ContentResolver = ctx.contentResolver
+            val contentUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            val uri = resolver.insert(contentUri, contentValues)
+                ?: throw IOException("Failed to create new MediaStore record")
+            val stream = resolver.openOutputStream(uri)
+                ?: throw IOException("Failed to open output stream")
+            if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)) {
+                resolver.delete(uri, null, null)
+                stream.close()
+                throw IOException("Failed to save bitmap")
+            }
+            stream.close()
+        } else {
+            val imagesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).toString()
+            val stream = FileOutputStream(File(imagesDir, name))
+            if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)) {
+                stream.close()
+                throw IOException("Failed to save bitmap")
+            }
+            stream.close()
+        }
+    }
+
+    fun isAirplaneModeOn(ctx: Context): Boolean {
+        return android.provider.Settings.Global.getInt(
+            ctx.contentResolver,
+            android.provider.Settings.Global.AIRPLANE_MODE_ON, 0
+        ) != 0
+    }
+
+    fun mobileStatusMessage(ctx: Context, status: Int): String {
+        return if (status == R.drawable.circle_white)
+            ctx.getString(R.string.airplane_mode)
+        else
+            ctx.getString(R.string.mobile_service_not_available)
+    }
+
+    @Suppress("unused")
+    fun isPSTNCallActive(ctx: Context): Boolean {
+        val tm = ctx.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager ?: return false
+        val baresipHandle = BaresipService.getPhoneAccountHandle(ctx)
+        try {
+            val getCallsMethod = TelecomManager::class.java.getMethod("getCalls")
+            val calls = getCallsMethod.invoke(tm) as? List<*>
+            if (calls != null)
+                for (c in calls) {
+                    if (c == null) continue
+                    val state = c.javaClass.getMethod("getState").invoke(c) as Int
+                    if (state == 1 || state == 2 || state == 3 || state == 4) { // 1=DIALING, 2=RINGING, 3=HOLDING, 4=ACTIVE
+                        val details = c.javaClass.getMethod("getDetails").invoke(c)
+                        val accountHandle = details?.javaClass?.getMethod("getAccountHandle")?.invoke(details) as? PhoneAccountHandle
+                        if (accountHandle != baresipHandle) {
+                            Log.d(TAG, "External call detected from account: $accountHandle")
+                            return true
+                        }
+                    }
+                }
+        } catch (e: Exception) {
+            Log.e(TAG, "isPSTNCallActive reflection error: $e")
+        }
+        return false
+    }
+
+    fun isAudioMode(ctx: Context, mode: Int): Boolean {
+        val am = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        return am.mode == mode
+    }
+
+    fun relativeTime(ctx: Context, time: GregorianCalendar): String {
+        return if (DateUtils.isToday(time.timeInMillis)) {
+            val fmt = DateFormat.getTimeInstance(DateFormat.SHORT)
+            ctx.getString(R.string.today) + "\n" + fmt.format(time.time)
+        }
+        else {
+            val month = time.getDisplayName(Calendar.MONTH, Calendar.SHORT, Locale.getDefault())!!
+                .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+            val day = time.get(Calendar.DAY_OF_MONTH)
+            val currentYear = Calendar.getInstance().get(Calendar.YEAR)
+            if (time.get(Calendar.YEAR) == currentYear) {
+                val fmt = DateFormat.getTimeInstance(DateFormat.SHORT)
+                "$month $day" + "\n" + fmt.format(time.time)
+            }
+            else
+                "$month $day" + "\n" + time.get(Calendar.YEAR)
+        }
+    }
+
+    fun setSpeakerPhone(executor: Executor, am: AudioManager, enable: Boolean) {
+        if (Build.VERSION.SDK_INT >= 31) {
+            if (!enable) {
+                Log.d(TAG, "Disabling speakerphone")
+                clearCommunicationDevice(am)
+                if (inCall() && am.mode == AudioManager.MODE_NORMAL) {
+                    Log.d(TAG, "Restoring MODE_IN_COMMUNICATION")
+                    am.mode = AudioManager.MODE_IN_COMMUNICATION
+                }
+                return
+            }
+            val current = am.communicationDevice?.type ?: AudioDeviceInfo.TYPE_UNKNOWN
+            Log.d(TAG, "Current com dev/mode is $current/${am.mode}")
+            var speakerDevice: AudioDeviceInfo? = null
+            for (device in am.availableCommunicationDevices)
+                if (device.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) {
+                    speakerDevice = device
+                    break
+                }
+            if (speakerDevice == null) {
+                Log.w(TAG,"Could not find requested communication device")
+                return
+            }
+            if (current != speakerDevice.type) {
+                // Currently at API levels 31+, speakerphone needs normal mode
+                if (am.mode == AudioManager.MODE_NORMAL) {
+                    Log.d(TAG, "Setting com device to ${speakerDevice.type} in MODE_NORMAL")
+                    if (!am.setCommunicationDevice(speakerDevice))
+                        Log.e(TAG, "Could not set com device")
+                }
+                else {
+                    val normalListener = object : AudioManager.OnModeChangedListener {
+                        override fun onModeChanged(mode: Int) {
+                            if (mode == AudioManager.MODE_NORMAL) {
+                                am.removeOnModeChangedListener(this)
+                                Log.d(
+                                    TAG, "Setting com device to ${speakerDevice.type}" +
+                                            " in mode ${am.mode}"
+                                )
+                                if (!am.setCommunicationDevice(speakerDevice))
+                                    Log.e(TAG, "Could not set com device")
+                            }
+                        }
+                    }
+                    am.addOnModeChangedListener(executor, normalListener)
+                    Log.d(TAG, "Setting mode to NORMAL")
+                    am.mode = AudioManager.MODE_NORMAL
+                }
+                Log.d(TAG, "New com device/mode is " +
+                        "${am.communicationDevice?.type ?: AudioDeviceInfo.TYPE_UNKNOWN}/${am.mode}")
+            }
+        }
+        else {
+            @Suppress("DEPRECATION")
+            am.isSpeakerphoneOn = enable
+            Log.d(TAG, "Speakerphone is $enable")
+        }
+    }
+
+    fun toggleSpeakerPhone(executor: Executor, am: AudioManager) {
+        val isSpeakerOn = if (Build.VERSION.SDK_INT >= 31) {
+            am.communicationDevice?.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+        } else {
+            @Suppress("DEPRECATION")
+            am.isSpeakerphoneOn
+        }
+        setSpeakerPhone(executor, am, !isSpeakerOn)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    fun setCommunicationDevice(am: AudioManager, type: Int) {
+        val current = am.communicationDevice?.type ?: AudioDeviceInfo.TYPE_UNKNOWN
+        Log.d(TAG, "Current com dev/mode $current/${am.mode}")
+        for (device in am.availableCommunicationDevices)
+            if (device.type == type) {
+                am.setCommunicationDevice(device)
+                break
+            }
+        Log.d(TAG, "New com dev/mode is " +
+                "${am.communicationDevice?.type ?: AudioDeviceInfo.TYPE_UNKNOWN}/${am.mode}")
+    }
+
+    fun clearCommunicationDevice(am: AudioManager) {
+        if (Build.VERSION.SDK_INT >= 31)
+            am.clearCommunicationDevice()
+        else
+            @Suppress("DEPRECATION")
+            am.isSpeakerphoneOn = false
+    }
+
+    fun mergeWavFiles(file1: File, file2: File, mergedFile: File): Boolean {
+        try {
+            val fis1 = FileInputStream(file1)
+            val fis2 = FileInputStream(file2)
+            val fos = FileOutputStream(mergedFile)
+
+            // Skip headers (assumed 44 bytes for standard WAV)
+            // NOTE: A robust implementation parses the header to find the 'data' chunk.
+            // For this quick fix, assuming 44 bytes is standard for Baresip output.
+            val headerSize = 44
+            val header1 = ByteArray(headerSize)
+            val header2 = ByteArray(headerSize)
+
+            if (fis1.read(header1) != headerSize || fis2.read(header2) != headerSize) {
+                Log.e(TAG, "MergeWav: Files too small")
+                return false
+            }
+
+            // Construct new header for stereo
+            // Copy header from file1 but update channels to 2 and block align
+            val newHeader = header1.clone()
+
+            // 1. Update File Size (Indices 4-7) - placeholder, fixed at end
+            // 2. Update Channels (Index 22) to 2 (Stereo)
+            newHeader[22] = 2
+            newHeader[23] = 0
+
+            // 3. Update Block Align (Index 32) - usually 2*Channels (16bit) -> 4
+            newHeader[32] = 4
+            newHeader[33] = 0
+
+            // 4. Update Byte Rate (Index 28) - usually SampleRate * BlockAlign
+            // Assuming 8000Hz sample rate: 8000 * 4 = 32000
+            // You should calculate this dynamically based on the input header if possible.
+            // For now, copying the rest is usually "okay" if players are lenient,
+            // but setting channels to 2 is the critical part.
+
+            fos.write(newHeader)
+
+            // MERGE LOOP with Buffering
+            val bufferSize = 4096 // 4KB buffer
+            val buffer1 = ByteArray(bufferSize)
+            val buffer2 = ByteArray(bufferSize)
+            val stereoBuffer = ByteArray(bufferSize * 2) // Output is twice as large
+
+            var bytesRead1: Int
+            var bytesRead2: Int
+            var totalBytesData = 0
+
+            while (true) {
+                bytesRead1 = fis1.read(buffer1)
+                bytesRead2 = fis2.read(buffer2)
+
+                if (bytesRead1 == -1 && bytesRead2 == -1) break
+
+                // Use the smaller read count to avoid out of bounds if files differ slightly
+                val limit = maxOf(bytesRead1, bytesRead2)
+                var outIndex = 0
+
+                // Interleave samples (Simple Left/Right merge)
+                // Assuming 16-bit audio (2 bytes per sample)
+                for (i in 0 until limit step 2) {
+                    // Left Channel (File 1)
+                    if (i + 1 < bytesRead1) {
+                        stereoBuffer[outIndex++] = buffer1[i]
+                        stereoBuffer[outIndex++] = buffer1[i+1]
+                    }
+                    else {
+                        // Padding if file1 ended
+                        stereoBuffer[outIndex++] = 0
+                        stereoBuffer[outIndex++] = 0
+                    }
+
+                    // Right Channel (File 2)
+                    if (i + 1 < bytesRead2) {
+                        stereoBuffer[outIndex++] = buffer2[i]
+                        stereoBuffer[outIndex++] = buffer2[i+1]
+                    }
+                    else {
+                        // Padding if file2 ended
+                        stereoBuffer[outIndex++] = 0
+                        stereoBuffer[outIndex++] = 0
+                    }
+                }
+
+                fos.write(stereoBuffer, 0, outIndex)
+                totalBytesData += outIndex
+            }
+
+            fis1.close()
+            fis2.close()
+
+            // Fix Header Sizes
+            // ChunkSize (4-7) = TotalFileSize - 8
+            val totalFileSize = totalBytesData + 44 - 8
+            val rFile = RandomAccessFile(mergedFile, "rw")
+            rFile.seek(4)
+            rFile.write(intToLittleEndian(totalFileSize), 0, 4)
+
+            // Subchunk2Size (40-43) = DataSize
+            rFile.seek(40)
+            rFile.write(intToLittleEndian(totalBytesData), 0, 4)
+            rFile.close()
+            fos.close()
+
+            return true
+        } catch (e: Exception) {
+            Log.e(TAG, "MergeWav error: $e")
+            return false
+        }
+    }
+
+    // Helper for header writing
+    private fun intToLittleEndian(value: Int): ByteArray {
+        return byteArrayOf(
+            (value and 0xff).toByte(),
+            (value shr 8 and 0xff).toByte(),
+            (value shr 16 and 0xff).toByte(),
+            (value shr 24 and 0xff).toByte()
+        )
+    }
+
+    fun createEmptyFile(path: String): File {
+        val file = File(path)
+        if (file.exists())
+            file.delete()
+        file.createNewFile()
+        return file
+    }
+
+    @SuppressLint("MissingPermission")
+    fun cancelMissedCallsNotification(ctx: Context) {
+        val telecom = ctx.getSystemService(TelecomManager::class.java)
+        try {
+            telecom.cancelMissedCallsNotification()
+            Log.d(TAG, "cancelMissedCallsNotification() succeeded")
+        } catch (e: SecurityException) {
+            Log.w(TAG, "Cannot clear missed call notification: $e")
+        } catch (e: Exception) {
+            Log.e(TAG, "Unexpected failure clearing missed call notification", e)
+        }
+    }
+
+    @RequiresApi(29)
+    fun pstnAccountHandle(ctx: Context):  PhoneAccountHandle? {
+        val roleManager = ctx.getSystemService(ROLE_SERVICE) as RoleManager
+        if (ctx.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) ==
+                    PackageManager.PERMISSION_GRANTED &&
+                roleManager.isRoleHeld(RoleManager.ROLE_DIALER)) {
+            val tm = ctx.getSystemService(Context.TELECOM_SERVICE) as TelecomManager
+            val preferredHandle: PhoneAccountHandle? = tm.userSelectedOutgoingPhoneAccount
+            if (preferredHandle != null)
+                return preferredHandle
+            val baresipHandle = BaresipService.getPhoneAccountHandle(ctx)
+            val phoneAccounts = tm.callCapablePhoneAccounts.filter { it != baresipHandle }
+            return if (phoneAccounts.isNotEmpty())
+                phoneAccounts[0]
+            else
+                null
+        }
+        else {
+            Log.d(TAG, "READ_PHONE_STATE permission not granted")
+            return null
+        }
+    }
+
+    fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
+        val (height: Int, width: Int) = options.outHeight to options.outWidth
+        var inSampleSize = 1
+        if (height > reqHeight || width > reqWidth) {
+            val halfHeight = height / 2
+            val halfWidth = width / 2
+            while (halfHeight / inSampleSize >= reqHeight && halfWidth / inSampleSize >= reqWidth)
+                inSampleSize *= 2
+        }
+        return inSampleSize
+    }
+
+    fun decodeSampledBitmapFromUri(ctx: Context, uri: Uri, reqWidth: Int, reqHeight: Int): Bitmap? {
+        return try {
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            ctx.contentResolver.openInputStream(uri).use { BitmapFactory.decodeStream(it, null, options) }
+            options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight)
+            options.inJustDecodeBounds = false
+            ctx.contentResolver.openInputStream(uri).use { BitmapFactory.decodeStream(it, null, options) }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to decode sampled bitmap from URI: ${e.message}")
+            null
+        }
+    }
+
+    fun decodeSampledBitmapFromByteArray(data: ByteArray, reqWidth: Int, reqHeight: Int): Bitmap? {
+        return try {
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(data, 0, data.size, options)
+            options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight)
+            options.inJustDecodeBounds = false
+            BitmapFactory.decodeByteArray(data, 0, data.size, options)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to decode sampled bitmap from ByteArray: ${e.message}")
+            null
+        }
+    }
+
+    fun decodeSampledBitmapFromFile(path: String, reqWidth: Int, reqHeight: Int): Bitmap? {
+        return try {
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(path, options)
+            options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight)
+            options.inJustDecodeBounds = false
+            BitmapFactory.decodeFile(path, options)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to decode sampled bitmap from file: ${e.message}")
+            null
+        }
+    }
+
+    @RequiresApi(29)
+    @SuppressLint("HardwareIds")
+    fun getLine1Number(ctx: Context, subscriptionId: Int = SubscriptionManager.DEFAULT_SUBSCRIPTION_ID): String? {
+        try {
+            if (Build.VERSION.SDK_INT >= 33) {
+                if (ctx.checkSelfPermission(Manifest.permission.READ_PHONE_NUMBERS) ==
+                        PackageManager.PERMISSION_GRANTED) {
+                    val sm = ctx.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as SubscriptionManager
+                    val number = sm.getPhoneNumber(subscriptionId)
+                    if (number != "") {
+                        Log.d(TAG, "Retrieved SIM number $number via SubscriptionManager for $subscriptionId")
+                        return number
+                    }
+                    else
+                        Log.d(TAG, "Did not get SIM number via SubscriptionManager for $subscriptionId")
+                }
+                else
+                    Log.d(TAG, "No READ_PHONE_NUMBERS permission")
+            }
+            else {
+                if (checkPermissions(ctx, arrayOf(Manifest.permission.READ_PHONE_NUMBERS,
+                        Manifest.permission.READ_PHONE_STATE))) {
+                    val tm = ctx.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+                    val targetTm = if (subscriptionId == SubscriptionManager.DEFAULT_SUBSCRIPTION_ID)
+                        tm
+                    else
+                        tm.createForSubscriptionId(subscriptionId)
+                    @Suppress("DEPRECATION")
+                    val number = targetTm.line1Number
+                    if (!number.isNullOrEmpty()) {
+                        Log.d(TAG, "Retrieved SIM number $number via TelephonyManager for $subscriptionId")
+                        return number
+                    }
+                    Log.d(TAG, "Could not retrieve SIM number")
+                }
+                else
+                    Log.d(TAG, "No READ_PHONE_NUMBERS and/or READ_PHONE_STATE permissions")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "getLine1Number failed: ${e.message}")
+        }
+        return null
+    }
+
+    fun sendSms(ctx: Context, destination: String, message: String): Boolean {
+        return try {
+            val smsManager = if (Build.VERSION.SDK_INT >= 31)
+                ctx.getSystemService(android.telephony.SmsManager::class.java)
+            else
+                @Suppress("DEPRECATION")
+                android.telephony.SmsManager.getDefault()
+            smsManager.sendTextMessage(
+                destination,
+                null,
+                message,
+                null,
+                null
+            )
+            Log.d(TAG, "Sent SMS message to $destination")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to send SMS: ${e.message}")
+            false
+        }
+    }
+
+    fun isDefaultSmsApp(ctx: Context): Boolean {
+        return if (Build.VERSION.SDK_INT >= 29) {
+            val roleManager = ctx.getSystemService(ROLE_SERVICE) as RoleManager
+            roleManager.isRoleHeld(RoleManager.ROLE_SMS)
+        } else
+            @Suppress("DEPRECATION")
+            android.provider.Telephony.Sms.getDefaultSmsPackage(ctx) == ctx.packageName
+    }
+
+    @Suppress("unused")
+    fun playFile(ctx: Context, path: String) {
+        Log.d(TAG, "Playing file $path")
+        MediaPlayer().apply {
+            setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .build()
+            )
+            setOnPreparedListener {
+                Log.d(TAG, "Starting MediaPlayer")
+                it.start()
+                Log.d(TAG, "MediaPlayer started")
+            }
+            setOnCompletionListener {
+                Log.d(TAG, "Stopping MediaPlayer")
+                it.stop()
+                it.release()
+            }
+            try {
+                Log.d(TAG, "Preparing $path")
+                setDataSource(ctx, path.toUri())
+                prepareAsync()
+            } catch (e: IllegalArgumentException) {
+                Log.e(TAG, "MediaPlayer IllegalArgumentException: ${e.message}")
+            } catch (e: IOException) {
+                Log.e(TAG, "MediaPlayer IOException: ${e.message}")
+            } catch (e: Exception) {
+                Log.e(TAG, "MediaPlayer Exception: ${e.message}")
+            }
+        }
+    }
+
+    fun isThemeDark(ctx: Context) : Boolean {
+        return Preferences(ctx).displayTheme == AppCompatDelegate.MODE_NIGHT_YES ||
+                ctx.resources?.configuration?.uiMode?.and(Configuration.UI_MODE_NIGHT_MASK) ==
+                Configuration.UI_MODE_NIGHT_YES
+    }
+
+    fun aecAgcNsCheck() {
+        val sessionId = Api.AAudio_open_stream()
+        if (sessionId <= 0) {
+            Log.e(TAG, "Failed to open AAudio stream or invalid sessionId ($sessionId)")
+            return
+        }
+
+        if (AcousticEchoCanceler.isAvailable()) {
+            val aec = AcousticEchoCanceler.create(sessionId)
+            if (aec != null) {
+                BaresipService.aecAvailable = true
+                aec.release()
+                Log.i(TAG, "Creation of hardware AEC for $sessionId succeeded")
+            }
+            else
+                Log.w(TAG, "Creation of hardware AEC for $sessionId failed")
+        }
+        else
+            Log.i(TAG, "Hardware AEC is NOT available")
+
+        if (AutomaticGainControl.isAvailable()) {
+            val agc = AutomaticGainControl.create(sessionId)
+            if (agc != null) {
+                BaresipService.agcAvailable = true
+                agc.release()
+                Log.d(TAG, "Creation of hardware AGC for $sessionId succeeded")
+            }
+            else
+                Log.w(TAG, "Creation of hardware AGC for $sessionId failed")
+        }
+        else
+            Log.i(TAG, "Hardware AGC is NOT available")
+
+        if (NoiseSuppressor.isAvailable()) {
+            val ns = NoiseSuppressor.create(sessionId)
+            if (ns != null) {
+                BaresipService.nsAvailable = true
+                ns.release()
+                Log.d(TAG, "Creation of hardware NS for $sessionId succeeded")
+            }
+            else
+                Log.w(TAG, "Creation of hardware NS for $sessionId failed")
+        }
+        else
+            Log.i(TAG, "Hardware NS is NOT available")
+
+        Api.AAudio_close_stream()
+    }
+
+    fun readUrlWithCustomCAs(urlConnection: HttpsURLConnection, caFile: File): String? {
+        if (!caFile.exists()) {
+            Log.d("Utils", "Custom CA file not found at ${caFile.path}")
+            return null
+        }
+        try {
+            // Create a TrustManager that trusts the CAs in the user-provided file
+            val customTrustManager = fun(): X509TrustManager {
+                val certificateFactory = CertificateFactory.getInstance("X.509")
+                val certificateInputStream = caFile.inputStream()
+                val certificates = certificateFactory.generateCertificates(certificateInputStream)
+                certificateInputStream.close()
+
+                val keyStore = KeyStore.getInstance(KeyStore.getDefaultType())
+                keyStore.load(null, null)
+                certificates.forEachIndexed { index, certificate ->
+                    keyStore.setCertificateEntry("user_ca_$index", certificate)
+                }
+
+                val tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+                tmf.init(keyStore)
+                return tmf.trustManagers.find { it is X509TrustManager } as X509TrustManager
+            }()
+
+            // Create a TrustManager that trusts the default system CAs
+            val systemTrustManager = fun(): X509TrustManager {
+                val factory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+                factory.init(null as KeyStore?) // A null keystore loads the system's default CAs
+                return factory.trustManagers.find { it is X509TrustManager } as X509TrustManager
+            }()
+
+            // Create a composite TrustManager that delegates to both system and custom CAs
+            @SuppressLint("CustomX509TrustManager")
+            val compositeTrustManager = object : X509TrustManager {
+                override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {
+                    // Delegate to the system manager by default.
+                    systemTrustManager.checkClientTrusted(chain, authType)
+                }
+
+                override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
+                    try {
+                        // Try to validate the chain with the system's default TrustManager.
+                        systemTrustManager.checkServerTrusted(chain, authType)
+                    } catch (_: CertificateException) {
+                        // If that fails, and only if that fails, try to validate with our custom TrustManager.
+                        // This will throw the final CertificateException if it also fails.
+                        customTrustManager.checkServerTrusted(chain, authType)
+                    }
+                }
+
+                override fun getAcceptedIssuers(): Array<X509Certificate> {
+                    // Return a combined list of issuers from both trust managers.
+                    return systemTrustManager.acceptedIssuers + customTrustManager.acceptedIssuers
+                }
+            }
+
+            // Create an SSLContext that uses new composite TrustManager
+            val sslContext = SSLContext.getInstance("TLS")
+            sslContext.init(null, arrayOf(compositeTrustManager), null)
+
+            // Tell HttpsURLConnection to use custom SSLContext for this connection
+            urlConnection.sslSocketFactory = sslContext.socketFactory
+
+            // Proceed with the connection and return the result
+            return urlConnection.inputStream.bufferedReader().use { it.readText() }
+
+        } catch (e: Exception) {
+            // Catch any exception from certificate loading or from the network connection
+            Log.e("Utils", "readUrlWithCustomCa failed: ${e.message}")
+            return null
+        }
+    }
+
+    fun Bitmap.toCircle(): Bitmap {
+        // Use full package names to avoid conflict with Compose classes
+        val output = androidx.core.graphics.createBitmap(this.width, this.height, Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(output)
+        val paint = android.graphics.Paint()
+        val rect = android.graphics.Rect(0, 0, this.width, this.height)
+
+        paint.isAntiAlias = true
+        canvas.drawARGB(0, 0, 0, 0)
+
+        canvas.drawCircle(this.width / 2f, this.height / 2f, this.width / 2f, paint)
+
+        paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+        canvas.drawBitmap(this, rect, rect, paint)
+        return output
+    }
+
+    fun createTextAvatar(letter: String, colorHex: String): Bitmap {
+        // Use decent resolution 128x128 and let Android scale it down.
+        val size = 128
+
+        // Use KTX createBitmap to match toCircle style
+        val bitmap = androidx.core.graphics.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+
+        // Use Fully Qualified Names to avoid Compose conflicts
+        val canvas = android.graphics.Canvas(bitmap)
+
+        // 1. Draw the colored circle background
+        val bgPaint = android.graphics.Paint()
+        bgPaint.isAntiAlias = true
+        try {
+            bgPaint.color = colorHex.toColorInt()
+        } catch (_: Exception) {
+            bgPaint.color = Color.GRAY // Fallback color
+        }
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f, bgPaint)
+
+        // 2. Draw the text (Initial)
+        val textPaint = android.graphics.Paint()
+        textPaint.isAntiAlias = true
+        textPaint.color = Color.WHITE
+        textPaint.textSize = size / 2f // Text size is half the circle size
+        textPaint.textAlign = android.graphics.Paint.Align.CENTER
+
+        // Use a bold font if possible to match your UI
+        textPaint.typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+
+        // Calculate vertical center to center the text properly
+        val bounds = android.graphics.Rect()
+        textPaint.getTextBounds(letter, 0, letter.length, bounds)
+        val yOffset = (bounds.bottom - bounds.top) / 2f
+
+        // Draw text at Center X, Center Y + half text height (to visually center)
+        canvas.drawText(letter.uppercase(), size / 2f, (size / 2f) + (yOffset / 2) + (bounds.height()/4), textPaint)
+
+        return bitmap
+    }
+
+    fun linkPropertiesEqual(p1: android.net.LinkProperties?, p2: android.net.LinkProperties?): Boolean {
+        if (p1 === p2) return true
+        if (p1 == null || p2 == null) return false
+        if (p1.interfaceName != p2.interfaceName) return false
+        if (p1.linkAddresses != p2.linkAddresses) return false
+        if (p1.dnsServers != p2.dnsServers) return false
+        if (p1.routes != p2.routes) return false
+        return true
+    }
+
+    object GregorianCalendarSerializer : KSerializer<GregorianCalendar> {
+        override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("GregorianCalendar", PrimitiveKind.LONG)
+        override fun serialize(encoder: Encoder, value: GregorianCalendar) = encoder.encodeLong(value.timeInMillis)
+        override fun deserialize(decoder: Decoder): GregorianCalendar {
+            val calendar = GregorianCalendar()
+            calendar.timeInMillis = decoder.decodeLong()
+            return calendar
+        }
+    }
+}

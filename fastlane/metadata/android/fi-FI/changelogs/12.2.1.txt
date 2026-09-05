@@ -1,1 +1,0 @@
-- Dynaamisten verkkojen käsittely parannettu ja korjattu.

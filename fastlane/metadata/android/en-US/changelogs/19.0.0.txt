@@ -1,3 +1,0 @@
-- Added button to turn microphone on/off during call
-- Used horizontal scroll view for call control buttons
-- Moved "video on" button to call control button row

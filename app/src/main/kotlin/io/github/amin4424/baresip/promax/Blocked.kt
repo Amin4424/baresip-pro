@@ -1,0 +1,69 @@
+package io.github.amin4424.baresip.promax
+
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+
+import java.io.File
+
+@Serializable
+class Blocked (
+    val aor: String,
+    val peerUri: String,
+    val request: String,
+    val timeStamp: Long
+) {
+    private val blockedSize = 128
+
+    fun add() {
+        BaresipService.blocked.add(this)
+        val aorBlocked = BaresipService.blocked.filter { it.aor == this.aor && it.request == this.request }
+        if (aorBlocked.size > blockedSize) {
+            val oldestToRemove = aorBlocked.first()
+            BaresipService.blocked.remove(oldestToRemove)
+        }
+        save()
+    }
+
+    companion object {
+
+        fun clear(aor: String) {
+            val updatedBlockedList = BaresipService.blocked.filter { it.aor != aor }
+            BaresipService.blocked = ArrayList(updatedBlockedList)
+            save()
+        }
+
+        fun save() {
+            if (!BaresipService.isNativeReady) return
+            Log.d(TAG, "Saving ${BaresipService.blocked.size} blocked calls and messages")
+            val file = File(BaresipService.filesPath + "/blocked")
+            try {
+                val jsonString = Json.encodeToString(BaresipService.blocked)
+                file.writeText(jsonString)
+            } catch (e: Exception) {
+                Log.e(TAG, "Serialization exception", e)
+            }
+        }
+
+        fun restore() {
+            val file = File(BaresipService.filesPath + "/blocked")
+            val oldFile = File(BaresipService.filesPath + "/blocked.json")
+            if (oldFile.exists()) {
+                Log.i(TAG, "Migrating blocked.json to blocked")
+                oldFile.renameTo(file)
+            }
+            if (file.exists()) {
+                try {
+                    val jsonString = file.readText()
+                    val blockedList = Json.decodeFromString<List<Blocked>>(jsonString)
+                    synchronized(BaresipService.blocked) {
+                        BaresipService.blocked.clear()
+                        BaresipService.blocked.addAll(blockedList)
+                    }
+                    Log.d(TAG, "Restored ${BaresipService.blocked.size} blocked calls and messages")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Deserialization exception: $e")
+                }
+            }
+        }
+    }
+}

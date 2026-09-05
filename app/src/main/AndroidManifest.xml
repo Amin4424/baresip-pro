@@ -228,9 +228,6 @@
                 <action android:name="io.github.amin4424.baresip.promax.REGISTER" />
                 <action android:name="io.github.amin4424.baresip.promax.UNREGISTER" />
                 <action android:name="io.github.amin4424.baresip.promax.QUIT" />
-                <action android:name="com.tutpro.baresip.promax.REGISTER" />
-                <action android:name="com.tutpro.baresip.promax.UNREGISTER" />
-                <action android:name="com.tutpro.baresip.promax.QUIT" />
             </intent-filter>
         </receiver>
 

@@ -1,0 +1,612 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
+package io.github.amin4424.baresip.promax
+
+import android.Manifest.permission.BLUETOOTH_CONNECT
+import android.Manifest.permission.CAMERA
+import android.Manifest.permission.POST_NOTIFICATIONS
+import android.Manifest.permission.READ_EXTERNAL_STORAGE
+import android.Manifest.permission.RECORD_AUDIO
+import android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+import android.annotation.SuppressLint
+import android.app.KeyguardManager
+import android.app.NotificationManager
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.Intent.ACTION_CALL
+import android.content.Intent.ACTION_DIAL
+import android.content.Intent.ACTION_VIEW
+import android.content.IntentFilter
+import android.media.AudioManager
+import android.os.Build
+import android.os.Bundle
+import android.provider.CallLog
+import android.view.KeyEvent
+import android.view.WindowManager
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.Observer
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import androidx.core.content.ContextCompat
+import kotlin.system.exitProcess
+
+class MainActivity : ComponentActivity() {
+
+    private lateinit var nm: NotificationManager
+    private lateinit var am: AudioManager
+    private lateinit var kgm: KeyguardManager
+    private lateinit var screenEventReceiver: BroadcastReceiver
+    private lateinit var serviceEventObserver: Observer<Event<Long>>
+    private lateinit var requestPermissionLauncher: ActivityResultLauncher<String>
+    private lateinit var requestPermissionsLauncher: ActivityResultLauncher<Array<String>>
+    private lateinit var comDevChangedListener: AudioManager.OnCommunicationDeviceChangedListener
+
+    private lateinit var baresipService: Intent
+
+    private var restart = false
+    private var atStartup = false
+    private var initialized = false
+
+    private val viewModel: ViewModel by viewModels()
+    private lateinit var navController:  NavHostController
+
+    @SuppressLint("ClickableViewAccessibility")
+    override fun onCreate(savedInstanceState: Bundle?) {
+
+        super.onCreate(savedInstanceState)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            splashScreen.setOnExitAnimationListener { splashScreenView ->
+                splashScreenView.remove()
+            }
+        }
+
+        val extraAction = intent.getStringExtra("action")
+        Log.i(TAG, "Main onCreate ${intent.action}/${intent.data}/$extraAction")
+
+        window.addFlags(WindowManager.LayoutParams.FLAG_IGNORE_CHEEK_PRESSES)
+
+        BaresipService.darkTheme.value = Utils.isThemeDark(this)
+
+        // Must be done after view has been created
+        this.setShowWhenLocked(true)
+        this.setTurnScreenOn( true)
+        Utils.requestDismissKeyguard(this)
+
+        nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        am = getSystemService(AUDIO_SERVICE) as AudioManager
+        kgm = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
+
+        serviceEventObserver = Observer {
+            val event = it.getContentIfNotHandled()
+            Log.d(TAG, "Observed event $event")
+            if (event != null && BaresipService.serviceEvents.isNotEmpty()) {
+                val first = BaresipService.serviceEvents.removeAt(0)
+                if (taskId != -1) {
+                    if (first.event == "started" && !initialized)
+                        // Android has restarted baresip when permission has been denied in app settings
+                        recreate()
+                    else {
+                        if (first.event == "stopped") {
+                            Log.d(TAG, "Handling service event 'stopped' with start error '${first.params[0]}'")
+                            if (first.params[0] != "")
+                                handleDialog(
+                                    ctx = applicationContext,
+                                    title = getString(R.string.notice),
+                                    message =getString(R.string.start_failed)
+                                )
+                            else {
+                                finishAndRemoveTask()
+                                if (restart)
+                                    reStart()
+                                else
+                                    exitProcess(0)
+                            }
+                        }
+                        else
+                            handleServiceEvent(this, viewModel, first.event, first.params)
+                    }
+                }
+                else
+                    Log.d(TAG, "Omit service event '$event' for task -1")
+            }
+        }
+
+        BaresipService.serviceEvent.observeForever(serviceEventObserver)
+
+        screenEventReceiver = object : BroadcastReceiver() {
+            override fun onReceive(contxt: Context, intent: Intent) {
+                if (kgm.isKeyguardLocked) {
+                    Log.d(TAG, "Screen on when locked")
+                    this@MainActivity.setShowWhenLocked(Call.inCall())
+                }
+            }
+        }
+
+        this.registerReceiver(screenEventReceiver, IntentFilter().apply { addAction(Intent.ACTION_SCREEN_ON) })
+
+        if (Build.VERSION.SDK_INT >= 31) {
+            comDevChangedListener = AudioManager.OnCommunicationDeviceChangedListener { device ->
+                if (device != null)
+                    Log.d(TAG, "Com device changed to type ${device.type} in mode ${am.mode}")
+            }
+            am.addOnCommunicationDeviceChangedListener(mainExecutor, comDevChangedListener)
+        }
+
+        initialized = true
+
+        val restartApp = {
+            Log.i(TAG, "Restarting baresip")
+            window.setFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
+            if (BaresipService.isServiceRunning) {
+                restart = true
+                baresipService.action = "Stop"
+                ContextCompat.startForegroundService(this, baresipService)
+            }
+            else {
+                finishAndRemoveTask()
+                val pm = applicationContext.packageManager
+                val intent = pm.getLaunchIntentForPackage(applicationContext.packageName)
+                if (intent != null) {
+                    applicationContext.startActivity(intent)
+                    exitProcess(0)
+                }
+                else
+                    Log.e(TAG, "Failed to restart: Launch intent is null")
+            }
+        }
+
+        val quitApp = {
+            Log.i(TAG, "Quiting baresip")
+            window.setFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE, WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
+            if (BaresipService.isServiceRunning) {
+                restart = false
+                baresipService.action = "Stop"
+                ContextCompat.startForegroundService(this, baresipService)
+            }
+            else {
+                finishAndRemoveTask()
+                exitProcess(0)
+            }
+        }
+
+        baresipService = Intent(this@MainActivity, BaresipService::class.java)
+
+        atStartup = intent.hasExtra("onStartup")
+
+        when (intent?.action) {
+            ACTION_DIAL, ACTION_CALL, ACTION_VIEW ->
+                if (BaresipService.isServiceRunning)
+                    callAction(
+                        applicationContext,
+                        viewModel,
+                        intent.data,
+                        if (intent?.action == ACTION_CALL) "call" else "dial"
+                    )
+                else
+                    BaresipService.callActionUri = intent.data
+                        .toString().replace("%2B", "+")
+                        .replace("%20", "")
+                        .filterNot{setOf('-', ' ', '(', ')').contains(it)}
+        }
+
+        var permissions = if (Build.VERSION.SDK_INT >= 33)
+            arrayOf(POST_NOTIFICATIONS, RECORD_AUDIO, BLUETOOTH_CONNECT)
+        else if (Build.VERSION.SDK_INT >= 31)
+            arrayOf(RECORD_AUDIO, BLUETOOTH_CONNECT)
+        else if (Build.VERSION.SDK_INT < 29)
+            arrayOf(RECORD_AUDIO, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE)
+        else
+            arrayOf(RECORD_AUDIO)
+
+        BaresipService.supportedCameras = Utils.supportedCameras(applicationContext).isNotEmpty()
+
+        if (BaresipService.supportedCameras) permissions += CAMERA
+
+        requestPermissionLauncher =
+            registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+                Log.i(TAG, "Permission granted: $isGranted")
+            }
+
+        requestPermissionsLauncher =
+            registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+                val denied = mutableListOf<String>()
+                val shouldShow = mutableListOf<String>()
+                it.forEach { permission ->
+                    if (!permission.value) {
+                        denied.add(permission.key)
+                        if (shouldShowRequestPermissionRationale(permission.key))
+                            shouldShow.add(permission.key)
+                    }
+                }
+                if (denied.contains(POST_NOTIFICATIONS) && !shouldShow.contains(POST_NOTIFICATIONS))
+                    handleDialog(
+                        ctx = applicationContext,
+                        title = getString(R.string.notice),
+                        message = getString(R.string.no_notifications),
+                        action = { quitRestart(false) }
+                    )
+                else if (shouldShow.isNotEmpty())
+                    handleDialog(
+                        ctx = applicationContext,
+                        title = getString(R.string.permissions_rationale),
+                        message =  if (CAMERA in permissions)
+                            getString(R.string.audio_and_video_permissions)
+                        else
+                            getString(R.string.audio_permissions),
+                        action = { requestPermissionsLauncher.launch(permissions) }
+                    )
+                else if (!BaresipService.isStartReceived) {
+                    baresipService.action = "Start"
+                    ContextCompat.startForegroundService(this, baresipService)
+                    if (atStartup) moveTaskToBack(true)
+                }
+            }
+
+        setContent {
+
+            AppTheme {
+
+                var showSplash by rememberSaveable { mutableStateOf(!atStartup) }
+
+                Box(modifier = Modifier.fillMaxSize()) {
+
+                    navController = rememberNavController()
+
+                LaunchedEffect(key1 = viewModel) {
+                    viewModel.navigationCommand.collect { command ->
+                        Log.d(TAG, "MainActivity: Received NavigationCommand: $command")
+                        when (command) {
+                            is NavigationCommand.NavigateToChat -> {
+                                val route = "chat/${command.aor}/${command.peerUri}"
+                                navController.navigate(route) { launchSingleTop = true }
+                            }
+                            is NavigationCommand.NavigateToCalls -> {
+                                val route = "calls/${command.aor}"
+                                navController.navigate(route) { launchSingleTop = true }
+                            }
+                            is NavigationCommand.NavigateToChats ->
+                                navController.navigate("chats") { launchSingleTop = true }
+                            is NavigationCommand.NavigateToCall -> {
+                                if (navController.currentDestination?.route != "call") {
+                                    navController.navigate("call") {
+                                        launchSingleTop = true
+                                    }
+                                }
+                            }
+                            is NavigationCommand.NavigateToHome ->
+                                navController.navigate("main") {
+                                    popUpTo("main") { inclusive = true }
+                                }
+                        }
+                    }
+                }
+
+                fun getBottomNavIndex(route: String?): Int {
+                    if (route == null) return -1
+                    return when {
+                        route == "main" -> 0
+                        route == "contacts" -> 1
+                        route.startsWith("calls") -> 2
+                        route.startsWith("chats") -> 3
+                        else -> -1
+                    }
+                }
+
+                NavHost(
+                    navController = navController,
+                    startDestination = "main",
+                    enterTransition = {
+                        val from = getBottomNavIndex(initialState.destination.route)
+                        val to = getBottomNavIndex(targetState.destination.route)
+                        if (from != -1 && to != -1) {
+                            if (to > from) {
+                                slideInHorizontally(
+                                    initialOffsetX = { fullWidth -> fullWidth },
+                                    animationSpec = tween(300)
+                                ) + fadeIn(animationSpec = tween(300))
+                            } else {
+                                slideInHorizontally(
+                                    initialOffsetX = { fullWidth -> -fullWidth },
+                                    animationSpec = tween(300)
+                                ) + fadeIn(animationSpec = tween(300))
+                            }
+                        } else {
+                            slideInHorizontally(
+                                initialOffsetX = { fullWidth -> fullWidth },
+                                animationSpec = tween(300)
+                            ) + fadeIn(animationSpec = tween(300))
+                        }
+                    },
+                    exitTransition = {
+                        val from = getBottomNavIndex(initialState.destination.route)
+                        val to = getBottomNavIndex(targetState.destination.route)
+                        if (from != -1 && to != -1) {
+                            if (to > from) {
+                                slideOutHorizontally(
+                                    targetOffsetX = { fullWidth -> -fullWidth },
+                                    animationSpec = tween(300)
+                                ) + fadeOut(animationSpec = tween(300))
+                            } else {
+                                slideOutHorizontally(
+                                    targetOffsetX = { fullWidth -> fullWidth },
+                                    animationSpec = tween(300)
+                                ) + fadeOut(animationSpec = tween(300))
+                            }
+                        } else {
+                            slideOutHorizontally(
+                                targetOffsetX = { fullWidth -> -fullWidth / 4 },
+                                animationSpec = tween(300)
+                            ) + fadeOut(animationSpec = tween(300))
+                        }
+                    },
+                    popEnterTransition = {
+                        val from = getBottomNavIndex(initialState.destination.route)
+                        val to = getBottomNavIndex(targetState.destination.route)
+                        if (from != -1 && to != -1) {
+                            if (to > from) {
+                                slideInHorizontally(
+                                    initialOffsetX = { fullWidth -> fullWidth },
+                                    animationSpec = tween(300)
+                                ) + fadeIn(animationSpec = tween(300))
+                            } else {
+                                slideInHorizontally(
+                                    initialOffsetX = { fullWidth -> -fullWidth },
+                                    animationSpec = tween(300)
+                                ) + fadeIn(animationSpec = tween(300))
+                            }
+                        } else {
+                            slideInHorizontally(
+                                initialOffsetX = { fullWidth -> -fullWidth / 4 },
+                                animationSpec = tween(300)
+                            ) + fadeIn(animationSpec = tween(300))
+                        }
+                    },
+                    popExitTransition = {
+                        val from = getBottomNavIndex(initialState.destination.route)
+                        val to = getBottomNavIndex(targetState.destination.route)
+                        if (from != -1 && to != -1) {
+                            if (to > from) {
+                                slideOutHorizontally(
+                                    targetOffsetX = { fullWidth -> -fullWidth },
+                                    animationSpec = tween(300)
+                                ) + fadeOut(animationSpec = tween(300))
+                            } else {
+                                slideOutHorizontally(
+                                    targetOffsetX = { fullWidth -> fullWidth },
+                                    animationSpec = tween(300)
+                                ) + fadeOut(animationSpec = tween(300))
+                            }
+                        } else {
+                            slideOutHorizontally(
+                                targetOffsetX = { fullWidth -> fullWidth },
+                                animationSpec = tween(300)
+                            ) + fadeOut(animationSpec = tween(300))
+                        }
+                    }
+                ) {
+                    mainScreenRoute(
+                        navController = navController,
+                        viewModel = viewModel,
+                        onRequestPermissions = { requestPermissionsLauncher.launch(permissions) },
+                        onRestartApp = { restartApp() },
+                        onQuitApp = { quitApp() }
+                    )
+                    callScreenRoute(navController, viewModel)
+                    settingsScreenRoute(
+                        navController = navController,
+                        onRestartApp = { restartApp() }
+                    )
+                    accountsScreenRoute(navController)
+                    audioScreenRoute(navController)
+                    accountScreenRoute(navController)
+                    codecsScreenRoute(navController)
+                    contactsScreenRoute(navController, viewModel)
+                    contactScreenRoute(navController, viewModel)
+                    callsScreenRoute(navController, viewModel)
+                    callDetailsScreenRoute(navController, viewModel)
+                    blockedScreenRoute(navController)
+                    blockingScreenRoute(navController)
+                    chatsScreenRoute(navController, viewModel)
+                    chatScreenRoute(navController, viewModel)
+                }
+
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentRoute = navBackStackEntry?.destination?.route
+                val showBottomBar = getBottomNavIndex(currentRoute) != -1
+
+                AnimatedVisibility(
+                    visible = showBottomBar && !showSplash,
+                    enter = fadeIn(animationSpec = tween(200)),
+                    exit = fadeOut(animationSpec = tween(200)),
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                ) {
+                    BottomNavigationBar(this@MainActivity, viewModel, navController)
+                }
+
+                if (showSplash) {
+                    SplashScreen(
+                        onFinish = { showSplash = false }
+                    )
+                }
+            }
+        }
+    }
+
+    } // OnCreate
+
+    override fun onStart() {
+        super.onStart()
+        Log.i(TAG, "Main onStart action/type/data: ${intent.action}/${intent.type}/${intent.data}")
+        val action = intent.getStringExtra("action")
+        if (action != null) {
+            // MainActivity was not visible when call, message, or transfer request came in
+            intent.removeExtra("action")
+            handleIntent(applicationContext, viewModel, intent, action)
+        }
+        else if (isCallLogIntent(intent)) {
+            handleCallLogIntent()
+        }
+        else if (intent.action == Intent.ACTION_MAIN && !atStartup) {
+            val activeNotifications = nm.activeNotifications
+            if (activeNotifications.any { it.id == CALL_MISSED_NOTIFICATION_ID }) {
+                val ua = BaresipService.uas.value.find { it.account.missedCalls }
+                if (ua != null)
+                    viewModel.navigateToCalls(ua.account.aor)
+            }
+            else if (activeNotifications.any { it.id == MESSAGE_NOTIFICATION_ID }) {
+                val lastUnread = BaresipService.messages.lastOrNull { it.new }
+                if (lastUnread != null) {
+                    Log.d(TAG, "MainActivity: User opened app with active message notification - navigating to chat ${lastUnread.peerUri}")
+                    viewModel.navigateToChat(lastUnread.aor, lastUnread.peerUri)
+                } else {
+                    Log.d(TAG, "MainActivity: User opened app with message notification - navigating to chats")
+                    viewModel.navigateToChats()
+                }
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Log.d(TAG, "Main onResume")
+        nm.cancelAll()
+        if (Build.VERSION.SDK_INT >= 29) {
+            val baresipService = Intent(this, BaresipService::class.java)
+            baresipService.action = "Check Roles"
+            startService(baresipService)
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        Log.d(TAG, "Main onPause")
+    }
+
+    override fun onDestroy() {
+        Log.d(TAG, "Main onDestroy")
+
+        this.unregisterReceiver(screenEventReceiver)
+
+        if (Build.VERSION.SDK_INT >= 31)
+            am.removeOnCommunicationDeviceChangedListener(comDevChangedListener)
+
+        BaresipService.serviceEvent.removeObserver(serviceEventObserver)
+        BaresipService.serviceEvents.clear()
+
+        super.onDestroy()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        // Called when MainActivity already exists at the top of current task
+        super.onNewIntent(intent)
+        setIntent(intent)
+
+        this.setShowWhenLocked(true)
+        this.setTurnScreenOn(true)
+
+        Log.d(TAG, "onNewIntent action/type/data: ${intent.action}/${intent.type}/${intent.data}")
+
+        when {
+            isCallLogIntent(intent) -> {
+                handleCallLogIntent()
+            }
+            intent.action in listOf(ACTION_DIAL, ACTION_CALL, ACTION_VIEW) -> {
+                callAction(
+                    applicationContext,
+                    viewModel,
+                    intent.data,
+                    if (intent.action == ACTION_CALL) "call" else "dial"
+                )
+            }
+            else -> {
+                val action = intent.getStringExtra("action")
+                if (action != null) {
+                    intent.removeExtra("action")
+                    handleIntent(applicationContext, viewModel, intent, action)
+                }
+            }
+        }
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        val stream = if (am.mode == AudioManager.MODE_RINGTONE)
+            AudioManager.STREAM_RING
+        else
+            AudioManager.STREAM_VOICE_CALL
+        when (keyCode) {
+            KeyEvent.KEYCODE_VOLUME_DOWN, KeyEvent.KEYCODE_VOLUME_UP -> {
+                am.adjustStreamVolume(stream,
+                    if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)
+                        AudioManager.ADJUST_LOWER else
+                        AudioManager.ADJUST_RAISE,
+                    AudioManager.FLAG_SHOW_UI)
+                Log.d(TAG, "Adjusted volume $keyCode of stream $stream to ${am.getStreamVolume(stream)}")
+                return true
+            }
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
+    private fun isCallLogIntent(intent: Intent?): Boolean {
+        return intent?.action == ACTION_VIEW && (intent.type == CallLog.Calls.CONTENT_TYPE ||
+                intent.data?.toString()?.contains("calls") == true)
+    }
+
+    private fun handleCallLogIntent() {
+        Log.d(TAG, "Handling Call Log intent")
+        val ua = BaresipService.uas.value.find { it.account.isMobile }
+            ?: BaresipService.uas.value.firstOrNull()
+        if (ua != null)
+            viewModel.navigateToCalls(ua.account.aor)
+    }
+
+    private fun quitRestart(reStart: Boolean) {
+        Log.i(TAG, "quitRestart Restart = $reStart")
+        window.setFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE, WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
+        if (BaresipService.isServiceRunning) {
+            restart = reStart
+            baresipService.action = "Stop"
+            ContextCompat.startForegroundService(this, baresipService)
+        }
+        else {
+            finishAndRemoveTask()
+            if (reStart)
+                quitRestart(true)
+            else
+                exitProcess(0)
+        }
+    }
+
+    private fun reStart() {
+        Log.d(TAG, "Trigger restart")
+        val pm = applicationContext.packageManager
+        val intent = pm.getLaunchIntentForPackage(this.packageName)
+        this.startActivity(intent)
+        exitProcess(0)
+    }
+}

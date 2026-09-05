@@ -1,3 +1,0 @@
-- Added "RTCP Multiplexing" account setting
-- Distribute action buttons evenly at the bottom of main activity
-- Use colorSecondaryDark as text view hint color

@@ -1,0 +1,190 @@
+package io.github.amin4424.baresip.promax
+
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+// Sealed class for type-safe navigation events
+sealed class NavigationCommand {
+    object NavigateToHome : NavigationCommand()
+    object NavigateToCall : NavigationCommand()
+    object NavigateToChats : NavigationCommand()
+    data class NavigateToCalls(val aor: String) : NavigationCommand()
+    data class NavigateToChat(val aor: String, val peerUri: String) : NavigationCommand()
+}
+
+class ViewModel: ViewModel() {
+
+    // A map to store message drafts. Key is "aor:peerUri"
+    private val messageDrafts = mutableMapOf<String, String>()
+
+    fun getAorPeerMessage(aor: String, peerUri: String): String {
+        return messageDrafts["$aor:$peerUri"] ?: ""
+    }
+
+    fun updateAorPeerMessage(aor: String, peerUri: String, message: String) {
+        val key = "$aor:$peerUri"
+        if (message.isEmpty())
+            messageDrafts.remove(key)
+        else
+            messageDrafts[key] = message
+    }
+
+    data class DialerState(
+        val callUri: MutableState<String> = mutableStateOf(""),
+        val callUriEnabled: MutableState<Boolean> = mutableStateOf(true),
+        val callUriLabel: MutableState<String> = mutableStateOf(""),
+        var redialUri: String = "",
+        val showSuggestions: MutableState<Boolean> = mutableStateOf(false),
+        val showCallButton: MutableState<Boolean> = mutableStateOf(true),
+        val showCallVideoButton: MutableState<Boolean> = mutableStateOf(true),
+        val showCallConferenceButton: MutableState<Boolean> = mutableStateOf(true),
+        val callButtonsEnabled: MutableState<Boolean> = mutableStateOf(true),
+        val callVideoButtonEnabled: MutableState<Boolean> = mutableStateOf(true),
+        val conferenceCall: MutableState<Boolean> = mutableStateOf(false),
+        val videoIcon: MutableState<Video> = mutableStateOf(Video.NONE)
+    )
+
+    val dialerState = DialerState()
+
+    private val _calls = MutableStateFlow<List<Call>>(emptyList())
+    val calls = _calls.asStateFlow()
+
+    private val _selectedAor = MutableStateFlow("")
+    val selectedAor = _selectedAor.asStateFlow()
+
+    private val _accountUpdate = MutableStateFlow(0)
+    val accountUpdate = _accountUpdate.asStateFlow()
+
+    private val _focusedCall = MutableStateFlow<Call?>(null)
+    val focusedCall = _focusedCall.asStateFlow()
+
+    private val _micIcon = MutableStateFlow(Icons.Filled.Mic)
+    val micIcon = _micIcon.asStateFlow()
+
+    private val _isSpeakerOn = MutableStateFlow(false)
+    val isSpeakerOn = _isSpeakerOn.asStateFlow()
+
+    private val _isDialpadVisible = MutableStateFlow(true)
+    val isDialpadVisible = _isDialpadVisible.asStateFlow()
+
+    private val _showKeyboard = MutableStateFlow(0)
+    val showKeyboard = _showKeyboard.asStateFlow()
+
+    private val _hideKeyboard = MutableStateFlow(0)
+    val hideKeyboard = _hideKeyboard.asStateFlow()
+
+    private val _navigationCommand = MutableSharedFlow<NavigationCommand>(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    val navigationCommand = _navigationCommand.asSharedFlow()
+
+    private var lastRenderedAor = ""
+    private var lastRenderedCallp = 0L
+    private var lastRenderedStatus = ""
+    private var lastRenderedSecurity = -1
+
+    fun isUIRedundant(aor: String, callp: Long, status: String, security: Int): Boolean {
+        return aor == lastRenderedAor && callp == lastRenderedCallp &&
+                status == lastRenderedStatus && security == lastRenderedSecurity
+    }
+
+    fun markUIRendered(aor: String, callp: Long, status: String, security: Int) {
+        lastRenderedAor = aor
+        lastRenderedCallp = callp
+        lastRenderedStatus = status
+        lastRenderedSecurity = security
+    }
+
+    private var _selectedCallRow: CallRow? = null
+
+    fun selectCallRow(callRow: CallRow) {
+        _selectedCallRow = callRow
+    }
+
+    fun consumeSelectedCallRow(): CallRow? {
+        val callRow = _selectedCallRow
+        _selectedCallRow = null
+        return callRow
+    }
+
+    fun navigateToChat(aor: String, peerUri: String) {
+        viewModelScope.launch {
+            _navigationCommand.emit(NavigationCommand.NavigateToChat(aor, peerUri))
+        }
+    }
+
+    fun onNewMessageReceived(aor: String, peerUri: String) {
+        navigateToChat(aor, peerUri)
+    }
+
+    fun updateCalls(calls: List<Call>) {
+        _calls.value = calls
+    }
+
+    fun updateSelectedAor(aor: String) {
+        _selectedAor.value = aor
+    }
+
+    fun setFocusedCall(call: Call?) {
+        _focusedCall.value = call
+    }
+
+    fun triggerAccountUpdate(call: Call? = null) {
+        _focusedCall.value = call
+        _accountUpdate.value += 1
+    }
+
+    fun updateMicIcon(icon: ImageVector) {
+        _micIcon.value = icon
+    }
+
+    fun updateSpeakerPhoneStatus(on: Boolean) {
+        _isSpeakerOn.value = on
+    }
+
+    fun toggleDialpadVisibility() {
+        _isDialpadVisible.value = !_isDialpadVisible.value
+    }
+
+    fun requestShowKeyboard() {
+        _showKeyboard.value += 1
+    }
+
+    fun requestHideKeyboard() {
+        _hideKeyboard.value += 1
+    }
+
+    fun navigateToHome() {
+        viewModelScope.launch {
+            _navigationCommand.emit(NavigationCommand.NavigateToHome)
+        }
+    }
+
+    fun navigateToCall() {
+        viewModelScope.launch {
+            _navigationCommand.emit(NavigationCommand.NavigateToCall)
+        }
+    }
+
+    fun navigateToCalls(aor: String) {
+        viewModelScope.launch {
+            _navigationCommand.emit(NavigationCommand.NavigateToCalls(aor))
+        }
+    }
+
+    fun navigateToChats() {
+        viewModelScope.launch {
+            _navigationCommand.emit(NavigationCommand.NavigateToChats)
+        }
+    }
+
+}

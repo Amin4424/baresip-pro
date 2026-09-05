@@ -1,2 +1,0 @@
-- Simplified playing of ringtone
-- New Portuguese translations

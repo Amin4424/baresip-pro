@@ -1,2 +1,0 @@
-- Minor upstream bug fixes
-- New German translations

@@ -1,2 +1,0 @@
-- Fixed bug in restoring Block Unknown account setting
-- New translations (Chinese)

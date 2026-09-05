@@ -1,2 +1,0 @@
-- Added contributed RU strings.
-- Upstream fix of possible crash.

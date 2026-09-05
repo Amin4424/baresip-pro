@@ -1,1 +1,1 @@
-SIP and mobile calling and messaging User Agent for Android based on baresip library
+Privacy-first SIP voice & video client with Material 3 UI, Camera2, and HD codecs

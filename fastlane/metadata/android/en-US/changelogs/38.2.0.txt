@@ -1,2 +1,0 @@
-- Audio routing related fixed for Android 12+ devices
-- Use secondary dark color in codec name when in dark mode

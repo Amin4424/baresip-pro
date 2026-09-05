@@ -1,4 +1,0 @@
-- Improved SIM card detection
-- Do not create mobile account automatically
-- Do not remove mobile account when role changes
-- New translations (Chinese)
