@@ -113,6 +113,10 @@ fun NavGraphBuilder.callsScreenRoute(navController: NavController, viewModel: Vi
         val aor = backStackEntry.arguments?.getString("aor")!!
         CallsScreen(navController, viewModel, aor)
     }
+    composable(route = "calls") {
+        val aor = viewModel.selectedAor.value.ifEmpty { BaresipService.uas.value.firstOrNull()?.account?.aor ?: "none" }
+        CallsScreen(navController, viewModel, aor)
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -212,20 +216,12 @@ private fun CallsScreen(navController: NavController, viewModel: ViewModel, aor:
                 if (ua != null) {
                     CallsContent(ctx, navController, viewModel, contentPadding, ua, callHistory)
                 } else {
-                    Column(
-                        modifier = Modifier.fillMaxSize().padding(contentPadding).padding(bottom = 80.dp),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = stringResource(R.string.no_account_found),
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(16.dp)
-                        )
-                        Button(onClick = { navController.navigate("accounts") }) {
-                            Text(text = stringResource(R.string.accounts))
-                        }
-                    }
+                    CustomElements.NoAccountView(
+                        title = stringResource(R.string.no_account_found),
+                        message = "Configure a SIP account to start tracking incoming and outgoing calls.",
+                        onAddAccount = { navController.navigate("accounts") },
+                        modifier = Modifier.padding(contentPadding).padding(bottom = 80.dp)
+                    )
                 }
             }
         },

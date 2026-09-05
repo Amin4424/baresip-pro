@@ -178,8 +178,8 @@ fun BottomNavigationBar(ctx: Context, viewModel: ViewModel, navController: NavCo
                 isActive = currentRoute?.startsWith("calls") == true,
                 hasBadge = hasMissedCalls,
                 onClick = {
-                    val targetAor = aor.ifEmpty { BaresipService.uas.value.firstOrNull()?.account?.aor ?: "" }
-                    if (targetAor.isNotEmpty() && currentRoute?.startsWith("calls") != true) {
+                    val targetAor = aor.ifEmpty { BaresipService.uas.value.firstOrNull()?.account?.aor ?: "none" }
+                    if (currentRoute?.startsWith("calls") != true) {
                         navController.navigate("calls/$targetAor") {
                             popUpTo("main") { saveState = true }
                             launchSingleTop = true
@@ -200,8 +200,8 @@ fun BottomNavigationBar(ctx: Context, viewModel: ViewModel, navController: NavCo
                         Toast.makeText(ctx, R.string.enable_default_messaging, Toast.LENGTH_LONG).show()
                         return@BottomNavItem
                     }
-                    val targetAor = aor.ifEmpty { BaresipService.uas.value.firstOrNull()?.account?.aor ?: "" }
-                    if (targetAor.isNotEmpty() && currentRoute?.startsWith("chats") != true) {
+                    val targetAor = aor.ifEmpty { BaresipService.uas.value.firstOrNull()?.account?.aor ?: "none" }
+                    if (currentRoute?.startsWith("chats") != true) {
                         navController.navigate("chats/$targetAor") {
                             popUpTo("main") { saveState = true }
                             launchSingleTop = true

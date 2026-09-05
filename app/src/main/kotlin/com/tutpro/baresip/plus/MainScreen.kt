@@ -91,6 +91,7 @@ import androidx.compose.material.icons.filled.AddIcCall
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Lock
@@ -886,10 +887,27 @@ private val showDialog = mutableStateOf(false)
 private fun NewDialerCard(ctx: Context, viewModel: ViewModel, dialerState: ViewModel.DialerState) {
     val isDark = isSystemInDarkTheme() || BaresipService.darkTheme.value
     val clipboardManager = LocalClipboardManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusRequester = remember { FocusRequester() }
 
     val primaryCyan = Color(0xFF00B0FF)
     val emeraldNeon = Color(0xFF00E676)
     val emeraldDeep = Color(0xFF00C853)
+
+    val currentUa = UserAgent.ofAor(viewModel.selectedAor.value)
+    val defaultNumeric = currentUa?.account?.numericKeypad ?: true
+    var isDialpadMode by rememberSaveable(viewModel.selectedAor.value) {
+        mutableStateOf(defaultNumeric)
+    }
+    var requestFocusOnSwitch by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isDialpadMode) {
+        if (requestFocusOnSwitch) {
+            focusRequester.requestFocus()
+            keyboardController?.show()
+            requestFocusOnSwitch = false
+        }
+    }
 
     var textFieldValue by remember {
         mutableStateOf(
@@ -921,119 +939,126 @@ private fun NewDialerCard(ctx: Context, viewModel: ViewModel, dialerState: ViewM
                 .padding(horizontal = 18.dp, vertical = 18.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Modern Alphanumeric Text Field
-            OutlinedTextField(
-                value = textFieldValue,
-                onValueChange = { newValue ->
-                    textFieldValue = newValue
-                    dialerState.callUri.value = newValue.text
-                    if (newValue.text.length > 1) {
-                        val normalizedInput = Utils.unaccent(newValue.text)
-                        filteredSuggestions = suggestions
-                            .filter { suggestion ->
-                                Utils.unaccent(suggestion).contains(normalizedInput, ignoreCase = true)
-                            }
-                            .map { suggestion ->
-                                Utils.buildAnnotatedStringWithHighlight(suggestion, newValue.text)
-                            }
-                        dialerState.showSuggestions.value = filteredSuggestions.isNotEmpty()
-                    } else {
-                        filteredSuggestions = emptyList()
-                        dialerState.showSuggestions.value = false
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = {
-                    Text(
-                        text = stringResource(R.string.enter_uri),
-                        fontSize = 15.sp,
-                        color = if (isDark) Color(0xFF64748B) else Color(0xFF94A3B8),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                },
-                leadingIcon = {
-                    Box(
-                        modifier = Modifier
-                            .padding(start = 10.dp, end = 6.dp)
-                            .size(36.dp)
-                            .background(
-                                if (isDark) primaryCyan.copy(alpha = 0.15f) else primaryCyan.copy(alpha = 0.10f),
-                                CircleShape
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Dialpad,
-                            contentDescription = null,
-                            tint = primaryCyan,
-                            modifier = Modifier.size(18.dp)
+            // Modern Alphanumeric / Dialpad Text Field
+            key(isDialpadMode) {
+                OutlinedTextField(
+                    value = textFieldValue,
+                    onValueChange = { newValue ->
+                        textFieldValue = newValue
+                        dialerState.callUri.value = newValue.text
+                        if (newValue.text.length > 1) {
+                            val normalizedInput = Utils.unaccent(newValue.text)
+                            filteredSuggestions = suggestions
+                                .filter { suggestion ->
+                                    Utils.unaccent(suggestion).contains(normalizedInput, ignoreCase = true)
+                                }
+                                .map { suggestion ->
+                                    Utils.buildAnnotatedStringWithHighlight(suggestion, newValue.text)
+                                }
+                            dialerState.showSuggestions.value = filteredSuggestions.isNotEmpty()
+                        } else {
+                            filteredSuggestions = emptyList()
+                            dialerState.showSuggestions.value = false
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
+                    placeholder = {
+                        Text(
+                            text = stringResource(R.string.enter_uri),
+                            fontSize = 15.sp,
+                            color = if (isDark) Color(0xFF64748B) else Color(0xFF94A3B8),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
-                    }
-                },
-                trailingIcon = {
-                    if (textFieldValue.text.isNotEmpty()) {
+                    },
+                    leadingIcon = {
                         IconButton(
                             onClick = {
-                                textFieldValue = TextFieldValue("")
-                                dialerState.callUri.value = ""
-                                dialerState.showSuggestions.value = false
+                                requestFocusOnSwitch = true
+                                isDialpadMode = !isDialpadMode
                             },
-                            modifier = Modifier.padding(end = 4.dp)
+                            modifier = Modifier
+                                .padding(start = 6.dp, end = 4.dp)
+                                .size(38.dp)
+                                .background(
+                                    if (isDark) primaryCyan.copy(alpha = 0.15f) else primaryCyan.copy(alpha = 0.10f),
+                                    CircleShape
+                                )
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.Close,
-                                contentDescription = "Clear",
-                                tint = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                                imageVector = if (isDialpadMode) Icons.Filled.Dialpad else Icons.Filled.Keyboard,
+                                contentDescription = if (isDialpadMode) "Switch to keyboard" else "Switch to dialpad",
+                                tint = primaryCyan,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
-                    } else {
-                        val clipText = clipboardManager.getText()?.text
-                        if (!clipText.isNullOrBlank()) {
+                    },
+                    trailingIcon = {
+                        if (textFieldValue.text.isNotEmpty()) {
                             IconButton(
                                 onClick = {
-                                    textFieldValue = TextFieldValue(clipText, TextRange(clipText.length))
-                                    dialerState.callUri.value = clipText
+                                    textFieldValue = TextFieldValue("")
+                                    dialerState.callUri.value = ""
+                                    dialerState.showSuggestions.value = false
                                 },
                                 modifier = Modifier.padding(end = 4.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Outlined.ContentPaste,
-                                    contentDescription = "Paste",
-                                    tint = primaryCyan,
+                                    imageVector = Icons.Filled.Close,
+                                    contentDescription = "Clear",
+                                    tint = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
+                        } else {
+                            val clipText = clipboardManager.getText()?.text
+                            if (!clipText.isNullOrBlank()) {
+                                IconButton(
+                                    onClick = {
+                                        textFieldValue = TextFieldValue(clipText, TextRange(clipText.length))
+                                        dialerState.callUri.value = clipText
+                                    },
+                                    modifier = Modifier.padding(end = 4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.ContentPaste,
+                                        contentDescription = "Paste",
+                                        tint = primaryCyan,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
                         }
-                    }
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(20.dp),
-                textStyle = TextStyle(
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (isDark) Color.White else Color(0xFF0F172A)
-                ),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC),
-                    unfocusedContainerColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC),
-                    focusedBorderColor = primaryCyan,
-                    unfocusedBorderColor = if (isDark) Color.White.copy(alpha = 0.12f) else Color(0xFFE2E8F0),
-                    cursorColor = primaryCyan
-                ),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Email,
-                    imeAction = ImeAction.Go
-                ),
-                keyboardActions = KeyboardActions(
-                    onGo = {
-                        if (dialerState.callUri.value.isNotEmpty()) {
-                            callClick(ctx, viewModel, dialerState, false)
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(20.dp),
+                    textStyle = TextStyle(
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isDark) Color.White else Color(0xFF0F172A)
+                    ),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC),
+                        unfocusedContainerColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC),
+                        focusedBorderColor = primaryCyan,
+                        unfocusedBorderColor = if (isDark) Color.White.copy(alpha = 0.12f) else Color(0xFFE2E8F0),
+                        cursorColor = primaryCyan
+                    ),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = if (isDialpadMode) KeyboardType.Phone else KeyboardType.Email,
+                        imeAction = ImeAction.Go
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onGo = {
+                            if (dialerState.callUri.value.isNotEmpty()) {
+                                callClick(ctx, viewModel, dialerState, false)
+                            }
                         }
-                    }
+                    )
                 )
-            )
+            }
 
             // Contact Suggestions Dropdown List (if matching contacts exist)
             if (dialerState.showSuggestions.value && filteredSuggestions.isNotEmpty()) {

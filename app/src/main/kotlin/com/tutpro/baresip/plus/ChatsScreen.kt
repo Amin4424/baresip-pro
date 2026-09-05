@@ -118,6 +118,10 @@ fun NavGraphBuilder.chatsScreenRoute(navController: NavController, viewModel: Vi
         val aor = backStackEntry.arguments?.getString("aor")!!
         ChatsScreen(navController, viewModel, aor)
     }
+    composable(route = "chats") {
+        val aor = viewModel.selectedAor.value.ifEmpty { BaresipService.uas.value.firstOrNull()?.account?.aor ?: "none" }
+        ChatsScreen(navController, viewModel, aor)
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -193,20 +197,12 @@ private fun ChatsScreen(navController: NavController, viewModel: ViewModel, aor:
                 if (account != null) {
                     ChatsContent(navController, contentPadding, account, uaMessages)
                 } else {
-                    Column(
-                        modifier = Modifier.fillMaxSize().padding(contentPadding).padding(bottom = 80.dp),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = stringResource(R.string.no_account_found),
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(16.dp)
-                        )
-                        Button(onClick = { navController.navigate("accounts") }) {
-                            Text(text = stringResource(R.string.accounts))
-                        }
-                    }
+                    CustomElements.NoAccountView(
+                        title = stringResource(R.string.no_account_found),
+                        message = "Configure a SIP account to start sending and receiving messages.",
+                        onAddAccount = { navController.navigate("accounts") },
+                        modifier = Modifier.padding(contentPadding).padding(bottom = 80.dp)
+                    )
                 }
             }
         }

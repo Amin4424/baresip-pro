@@ -10,6 +10,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.verticalScroll
@@ -33,6 +35,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.BasicAlertDialog
@@ -61,6 +65,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
@@ -817,6 +822,143 @@ object CustomElements {
                         )
                     ) {
                         Text(text = actionLabel, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun NoAccountView(
+        title: String,
+        message: String,
+        onAddAccount: () -> Unit,
+        modifier: Modifier = Modifier
+    ) {
+        val isDark = isSystemInDarkTheme() || BaresipService.darkTheme.value
+        val primaryCyan = Color(0xFF00B0FF)
+        val accentBlue = Color(0xFF0080FF)
+
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(
+                        elevation = if (isDark) 16.dp else 8.dp,
+                        shape = RoundedCornerShape(28.dp),
+                        spotColor = primaryCyan.copy(alpha = 0.25f)
+                    ),
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isDark) Color(0xFF131B2E).copy(alpha = 0.95f) else Color.White
+                ),
+                border = BorderStroke(
+                    1.dp,
+                    if (isDark) Color.White.copy(alpha = 0.12f) else Color(0xFFE2E8F0)
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 36.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    // Glowing Icon Badge
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .shadow(12.dp, CircleShape, spotColor = primaryCyan.copy(alpha = 0.5f))
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(primaryCyan.copy(alpha = 0.25f), accentBlue.copy(alpha = 0.10f))
+                                ),
+                                CircleShape
+                            )
+                            .border(
+                                1.5.dp,
+                                Brush.verticalGradient(
+                                    listOf(primaryCyan.copy(alpha = 0.6f), primaryCyan.copy(alpha = 0.15f))
+                                ),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.PersonAdd,
+                            contentDescription = null,
+                            tint = primaryCyan,
+                            modifier = Modifier.size(38.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Text(
+                        text = title,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDark) Color.White else Color(0xFF0F172A),
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = message,
+                        fontSize = 14.sp,
+                        color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                        textAlign = TextAlign.Center,
+                        lineHeight = 21.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(26.dp))
+
+                    // Modern Gradient Add Account Button
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth(0.85f)
+                            .height(50.dp)
+                            .shadow(8.dp, RoundedCornerShape(20.dp), spotColor = primaryCyan.copy(alpha = 0.5f))
+                            .clip(RoundedCornerShape(20.dp))
+                            .clickable(onClick = onAddAccount),
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color.Transparent
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(primaryCyan, accentBlue)
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Add,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Add Account",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
                     }
                 }
             }
