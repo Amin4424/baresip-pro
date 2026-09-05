@@ -220,11 +220,19 @@ fun AccountsContent(contentPadding: PaddingValues, navController: NavController)
             }
         }
     } else {
-        CustomElements.EmptyStateBanner(
-            icon = Icons.Outlined.ManageAccounts,
-            title = stringResource(R.string.no_account_found),
-            message = "Add a new SIP account below to start making and receiving calls."
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(contentPadding)
+                .verticalScroll(rememberScrollState()),
+            contentAlignment = Alignment.Center
+        ) {
+            CustomElements.EmptyStateBanner(
+                icon = Icons.Outlined.ManageAccounts,
+                title = stringResource(R.string.no_account_found),
+                message = "Add a new SIP account below to start making and receiving calls."
+            )
+        }
     }
 }
 
