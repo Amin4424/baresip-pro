@@ -2,6 +2,6 @@ Baresip 是一款专注于安全性的 Android 开源通信应用，最初仅支
 
 在 VoIP 通话中，音频可以使用 AMR、Codec2、G.729、G.722、G.722.1、iLBC、Opus 或 PCMU/PCMA 编解码器进行编码。通过 TLS 或 WSS SIP 信令传输以及 ZRTP 或（DTLS）SRTP 媒体封装实现安全保障。
 
-Baresip 应用可安装在运行 Android 9 或更高版本的 Android 设备上。移动通话和消息传递功能需要 Android 10 或更高版本。如果您需要视频通话功能，可以安装其姊妹应用 baresip+ 来代替此应用。
+Baresip 应用可安装在运行 Android 9 或更高版本的 Android 设备上。移动通话和消息传递功能需要 Android 10 或更高版本。如果您需要视频通话功能，可以安装其姊妹应用 Baresip Pro Max 来代替此应用。
 
-源代码可在 <a href="https://github.com/juha-h/baresip-studio">GitHub</a> 上找到，您也可以在此报告问题。
+源代码可在 <a href="https://github.com/Amin4424/baresip-pro-max">GitHub</a> 上找到，您也可以在此报告问题。

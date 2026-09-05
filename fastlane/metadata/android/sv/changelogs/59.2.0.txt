@@ -1,2 +1,0 @@
-- Inställningen Starta automatiskt startar nu appen i stället för att meddela om den
-- Nya översättningar till spanska, portugisiska (Brasilien) och ryska

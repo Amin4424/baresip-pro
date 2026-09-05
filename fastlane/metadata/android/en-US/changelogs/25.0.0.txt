@@ -1,2 +1,0 @@
-- Improved incoming call notification.
-- Added missed call notification.

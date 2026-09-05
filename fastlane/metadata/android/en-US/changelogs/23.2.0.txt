@@ -1,2 +1,0 @@
-- Improved detection of VPN connectivity changes
-- New Portuguese (Brazil) translations

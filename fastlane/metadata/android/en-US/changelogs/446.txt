@@ -1,2 +1,0 @@
-- Fixed Do Not Disturb check
-- New translations

@@ -1,2 +1,0 @@
-- Kontaktvalslistan innehåller nu bara de Android-kontakter som har exakt en URI
-- Nya översättningar till svenska och portugisiska (Brasilien)

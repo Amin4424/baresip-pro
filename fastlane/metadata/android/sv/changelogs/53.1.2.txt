@@ -1,1 +1,0 @@
-- Uppströms ökning av max storlek på kontosträng

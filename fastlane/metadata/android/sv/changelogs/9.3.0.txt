@@ -1,2 +1,0 @@
-- Lagt till konfigurationsalternativet Svarsläge (Manuell eller Automatisk) för kontot.
-- Lagt till norska bokmålssträngar och ändringsloggar från Weblate.

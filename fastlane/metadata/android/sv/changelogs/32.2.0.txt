@@ -1,2 +1,0 @@
-- Förbättrad kontroll av SIP URI-parametrar
-- Fler korrigeringar och förbättringar relaterade till ljudhanterare/bluetooth

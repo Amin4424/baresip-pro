@@ -1,3 +1,0 @@
-- Fixed handling of DTMF backspace character
-- Chat and contact related UI improvements
-- Use background color also in system bars

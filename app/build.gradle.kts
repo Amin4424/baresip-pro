@@ -69,7 +69,7 @@ configure<ApplicationExtension> {
             version = "3.31.6"
         }
     }
-    namespace = "com.tutpro.baresip"
+    namespace = "io.github.amin4424.baresip.pro"
 
     packaging {
         jniLibs {

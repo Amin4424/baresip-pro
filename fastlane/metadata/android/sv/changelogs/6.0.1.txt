@@ -1,3 +1,0 @@
-- Återuppta baresip app till den aktivitet som stoppades.
-- Lägg till exempelkontakt när baresip startas första gången.
-- Fixat visning av nytt meddelande i chatt- och meddelandelistan.

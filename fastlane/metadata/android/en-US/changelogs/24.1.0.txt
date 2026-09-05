@@ -1,3 +1,0 @@
-- Improved handling of volume up/down keys
-- Improved handling of speakerphone
-- New RU translations

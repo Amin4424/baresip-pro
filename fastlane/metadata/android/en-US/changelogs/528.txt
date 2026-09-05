@@ -1,2 +1,0 @@
-- Fixed handling of missed mobile call notifications
-- New translations (Spanish)

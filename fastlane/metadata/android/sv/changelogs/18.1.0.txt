@@ -1,3 +1,0 @@
-- Förbättrad konfiguration av kontots ljudcodecs.
-- Visa alltid inkommande samtal (om något) när baresip återupptas.
-- Förbättrad och fixad återupptagning till icke-huvudaktiviteter.

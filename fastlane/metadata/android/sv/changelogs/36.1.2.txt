@@ -1,1 +1,0 @@
-- Förhindrade swipe-relaterad krasch

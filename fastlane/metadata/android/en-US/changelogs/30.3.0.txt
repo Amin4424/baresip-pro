@@ -1,3 +1,0 @@
-- Play auto-answer sound when auto-answering
-- Removed iLBC codec (removed from upstream)
-- Removed unused audio files

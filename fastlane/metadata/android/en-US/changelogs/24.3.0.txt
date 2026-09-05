@@ -1,3 +1,0 @@
-- Show dialpad automatically only when device orientation is portrait
-- Don't play call waiting sound when second call comes in
-- Improved About text

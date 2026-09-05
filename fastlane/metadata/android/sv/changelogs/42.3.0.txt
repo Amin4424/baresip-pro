@@ -1,3 +1,0 @@
-- Fast tillägg av ny baresip-kontakt
-- När du väljer ett nytt standardkonto, behåll ordningen på resten oförändrad
-- Förbättrad hantering av samtal som avvisas automatiskt

@@ -1,2 +1,0 @@
-- Fixed coloring of audio modules setting
-- Fixed call list related crash and appearance

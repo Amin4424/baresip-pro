@@ -1,3 +1,0 @@
-- Använd akustisk ekoavstängning endast på inspelningssessionen
-- Gör inte backup av inspelningar
-- Nya översättningar till rumänska, portugisiska (Brasilien), tyska och tjeckiska

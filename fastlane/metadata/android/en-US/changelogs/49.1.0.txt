@@ -1,1 +1,0 @@
-- Toast reason when incoming call gets closed by baresip lib

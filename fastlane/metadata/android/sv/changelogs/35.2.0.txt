@@ -1,3 +1,0 @@
-- Fixar och förbättringar relaterade till ljudfokus
-- Ta bort alla blanksteg från callee-fältet
-- Ny översättning till portugisiska (Brasilien)

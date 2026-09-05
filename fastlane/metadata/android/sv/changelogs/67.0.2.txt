@@ -1,3 +1,0 @@
-- Buggfix för ljudinställning för standardvolym för samtal
-- Förbättring och buggfix för säkerhetskopiering/återställning
-- Nya översättningar (tyska)

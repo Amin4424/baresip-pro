@@ -1,3 +1,0 @@
-- Förbättrad hantering av volymknappar för upp/ned
-- Förbättrad hantering av högtalartelefon
-- Nya RU-översättningar

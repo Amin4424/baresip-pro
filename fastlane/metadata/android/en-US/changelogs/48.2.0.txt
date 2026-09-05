@@ -1,2 +1,0 @@
-- Disable PRACK (RFC 3262) feature due to severe upstream bug
-- New Portuguese (Brazil) and Russian translations

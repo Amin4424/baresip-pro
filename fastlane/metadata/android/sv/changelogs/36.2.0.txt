@@ -1,2 +1,0 @@
-- För närvarande är mikrofonikonen endast aktiv när ett samtal är anslutet
-- Nya svenska översättningar

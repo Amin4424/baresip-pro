@@ -1,3 +1,0 @@
-- Använd elliptisk kurvkryptografi baserad på DTLS Key Establishment Protocol
-- Fixad säkerhetskopiering av samtalshistorik
-- Nya svenska översättningar

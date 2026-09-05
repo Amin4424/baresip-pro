@@ -1,3 +1,0 @@
-- Avoid crash related to screen rotation
-- Upstream fix related to SIP 183 Session Progress response
-- Translations update (English, Finnish)

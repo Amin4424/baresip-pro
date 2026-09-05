@@ -1,2 +1,0 @@
-- Förbättrad upptäckt av förändringar i VPN-anslutningen
-- Nya översättningar till portugisiska (Brasilien)

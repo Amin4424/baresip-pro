@@ -1,3 +1,0 @@
-- Weblate-anteckning tillagd i texten Om
-- Nya översättningar (kinesiska)
-- Baresip lib loggning makro fix

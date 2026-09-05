@@ -216,9 +216,6 @@
                 <action android:name="io.github.amin4424.baresip.pro.REGISTER" />
                 <action android:name="io.github.amin4424.baresip.pro.UNREGISTER" />
                 <action android:name="io.github.amin4424.baresip.pro.QUIT" />
-                <action android:name="com.tutpro.baresip.REGISTER" />
-                <action android:name="com.tutpro.baresip.UNREGISTER" />
-                <action android:name="com.tutpro.baresip.QUIT" />
             </intent-filter>
         </receiver>
 

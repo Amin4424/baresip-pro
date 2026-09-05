@@ -1,2 +1,0 @@
-- Upstream fix of bug that may cause baresip app to stop responding
-- New Czech translations

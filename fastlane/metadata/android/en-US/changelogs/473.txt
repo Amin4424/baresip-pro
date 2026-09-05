@@ -1,2 +1,0 @@
-- Improved showing of contact suggestions on Main and Chats screens
-- New translations (Czech)

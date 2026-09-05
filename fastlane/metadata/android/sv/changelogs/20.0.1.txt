@@ -1,2 +1,0 @@
-- Fixat återgång till Audio Activity efter paus.
-- Fast tillägg av ljudmoduler i ljudinställningar.

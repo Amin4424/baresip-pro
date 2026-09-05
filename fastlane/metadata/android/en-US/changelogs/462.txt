@@ -1,2 +1,0 @@
-- Added proper response code and reason to user agent hangup calls
-- Removed possible old recordings when baresip is restored

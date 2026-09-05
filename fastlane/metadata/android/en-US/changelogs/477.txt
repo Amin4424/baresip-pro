@@ -1,5 +1,0 @@
-- Migrated alert dialogs to Material design style
-- Improved dropdown menu coloring
-- Added timeout for getting account template from network
-- Fixed call redirect URI
-- New translations (Hebrew)

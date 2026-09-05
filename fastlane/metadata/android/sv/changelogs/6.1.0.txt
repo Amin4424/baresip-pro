@@ -1,2 +1,0 @@
-- Gå till chattfönstret när du klickar på meddelandeaviseringen.
-- Åtgärdat fel i samtalsöverföring.

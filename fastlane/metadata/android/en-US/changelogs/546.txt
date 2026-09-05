@@ -1,2 +1,0 @@
-- Blocking related fixes and improvements
-- New translations (Chinese, Finnish)

@@ -1,2 +1,0 @@
-- Fixade att slå på mörkt tema när Baresip-applikationen startas
-- Nya översättningar (portugisiska (Brasilien))

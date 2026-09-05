@@ -1,1 +1,0 @@
-- Flera förbättringar av användargränssnittet (mestadels chattrelaterade).

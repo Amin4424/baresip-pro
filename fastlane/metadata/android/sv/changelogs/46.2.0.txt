@@ -1,3 +1,0 @@
-- Om avregistreringen misslyckas, uppdatera ändå registreringsstatusen till vit
-- Ställ in lösenord när användaragent skapas
-- Nya översättningar till portugisiska (Brasilien)

@@ -1,1 +1,0 @@
-- Korrigerad kontroll av DNS-servrar för konfiguration.

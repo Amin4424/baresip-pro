@@ -1,1 +1,1 @@
-VoIP and mobile calling and messaging app for Android based on baresip library
+Privacy-first SIP voice client with Material 3 UI and HD audio codecs

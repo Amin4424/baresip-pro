@@ -1,3 +1,0 @@
-- Fixed adding of new call to history
-- Avoid screen "flash" when calling from contacts or call history
-- New translations (Czech)

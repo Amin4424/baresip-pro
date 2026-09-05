@@ -1,1 +1,0 @@
-- Uppdatera kontospinnaren även när huvudaktiviteten återupptas utan åtgärd.

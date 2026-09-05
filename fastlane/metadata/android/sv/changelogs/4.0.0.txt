@@ -1,2 +1,0 @@
-- Förbättrad implementering av kontakter, meddelanden och samtalshistorik.
-- Undviker krasch när meddelanden kommer innan konton har lagts till.

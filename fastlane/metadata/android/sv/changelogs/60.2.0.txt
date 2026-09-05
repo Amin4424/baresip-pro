@@ -1,3 +1,0 @@
-- Lagt till DTMF-läge för "RTP eller SIP INFO i band
-- Ljudinställning för högtalartelefon har lagts till
-- Nya översättningar till tyska, portugisiska (Brasilien) och spanska

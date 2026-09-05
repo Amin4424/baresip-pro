@@ -1,2 +1,0 @@
-- Inledande stöd för överföring av samtal från baresip har lagts till.
-- Lagt till nytt språk portugisiska från Weblate.

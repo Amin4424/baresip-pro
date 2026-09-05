@@ -1,2 +1,0 @@
-- Lagt till knapp för att slå på/av mikrofonen under samtal
-- Använd horisontell rullningsvy för knappar för samtalsstyrning

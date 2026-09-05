@@ -1,4 +1,0 @@
-- Added initial support for attended call transfer
-- In chat activity, replaced long click with short click
-- Made message text selectable
-- Use bold typeface in AoR spinner text when call is active

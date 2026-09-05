@@ -1,3 +1,0 @@
-- Flera inställningsrelaterade korrigeringar
-- Förbättrad layout för dialogrutan för överföring
-- Nya översättningar (tyska)

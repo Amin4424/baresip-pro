@@ -1,2 +1,0 @@
-- Förbättrad avisering av inkommande samtal.
-- Meddelande om missat samtal har lagts till.

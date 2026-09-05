@@ -1,4 +1,0 @@
-- Förvärva WiFi-lås när baresip använder WiFi-nätverk
-- Lagt till anmärkning i Om-texten angående batterioptimering
-- Nya översättningar till svenska och portugisiska (Brasilien)
-- Diverse implementeringsförbättringar

@@ -1,2 +1,0 @@
-- Använd volymknappar för ringsignalvolym när samtal kommer in och för samtalsvolym under samtal
-- Använd toasts för no network och no hw aec notiser

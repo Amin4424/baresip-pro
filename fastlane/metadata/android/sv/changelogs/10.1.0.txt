@@ -1,2 +1,0 @@
-- Lagt till stöd för G722-codec.
-- Fixat sparande av konton.

@@ -1,2 +1,0 @@
-- Fixad krasch på ARMv7-enheter när meddelande togs emot
-- Nya översättningar till portugisiska (Brasilien)

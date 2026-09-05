@@ -1,4 +1,0 @@
-- Show diverter if incoming call has been diverted
-- Backup related fixes in older Android versions
-- Improved URI to Contact matching
-- New Portuguese (Brazil) translations

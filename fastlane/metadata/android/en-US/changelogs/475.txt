@@ -1,3 +1,0 @@
-- Fixed launch icon background
-- Improved showing of call icons
-- New translations (Hebrew)

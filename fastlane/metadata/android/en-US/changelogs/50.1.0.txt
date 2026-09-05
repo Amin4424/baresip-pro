@@ -1,3 +1,0 @@
-- Quit/Restart process improvements
-- Try to support toggling of SpeakerPhone at API levels 31+
-- New Portuguese (Brazil) translations

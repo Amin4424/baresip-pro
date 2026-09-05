@@ -1,3 +1,0 @@
-- Lagt till möjlighet att stoppa inspelningsuppspelning
-- Lagt till adaptiv startikon
-- Nya spanska översättningar

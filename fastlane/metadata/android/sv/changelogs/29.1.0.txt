@@ -1,3 +1,0 @@
-- Portugisiska (Brasilien) översättningar från Weblate
-- Fixad F-Droid nb-NO locale tagg
-- Undvik varningar för "duplicerad begäran om slutförande

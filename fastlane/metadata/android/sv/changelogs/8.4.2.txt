@@ -1,2 +1,0 @@
-- Uppdatera DNS-servrar och registrera UA:er alltid när nätverket blir tillgängligt.
-- Fixat och uppdaterat några texter.

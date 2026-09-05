@@ -1,2 +1,0 @@
-- Tillåt ändring av kontaktnamn även när endast bokstävernas versaler skiljer sig åt.
-- När du återställer kontakter behöver du inte kräva att URI:er omges av vinkelparenteser.

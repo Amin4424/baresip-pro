@@ -10,7 +10,6 @@
         <h1>SIP and mobile calling User Agent based on
             <a href="https://github.com/baresip/baresip">baresip</a> library</h1>
         <br>
-        <p>Juha Heinanen &lt;jh@tutpro.com&gt;</p>
         <p>Version %1$s</p>
         <br>
         <h2>Usage Hints</h2>
@@ -33,13 +32,13 @@
             <li>Long touches can also be used to remove calls, chats, messages, and contacts.</li>
             <li>Touch/long touch on contact icon can be used to install/remove image avatar.</li>
             <li>Long touch on an audio codec can be used to enable/disable the codec.</li>
-            <li>See <a href="https://github.com/juha-h/baresip-studio/wiki">Wiki</a> for more information.</li>
+            <li>See <a href="https://github.com/Amin4424/baresip-pro-max/wiki">Wiki</a> for more information.</li>
         </ul>
         <h2>Privacy Policy</h2>
-            <p>Privacy policy is available <a href="https://raw.githubusercontent.com/juha-h/baresip-studio/master/PrivacyPolicy.txt">here</a>.</p>
+            <p>Privacy policy is available <a href="https://raw.githubusercontent.com/Amin4424/baresip-pro-max/master/PrivacyPolicy.txt">here</a>.</p>
         <br>
         <h2>Source Code</h2>
-            <p>Source code is available at <a href="https://github.com/juha-h/baresip-studio">GitHub</a>,
+            <p>Source code is available at <a href="https://github.com/Amin4424/baresip-pro-max">GitHub</a>,
             where also issues can be reported.</p>
         <br>
         <h2>Language Translations</h2>
@@ -61,7 +60,6 @@
         <![CDATA[
         <h1>SIP User Agent with video calls based on <a href="https://github.com/baresip/baresip">baresip</a> library</h1>
         <br>
-        <p>Juha Heinanen &lt;jh@tutpro.com&gt;</p>
         <p>Version %1$s</p>
         <br>
         <h2>Usage Hints</h2>
@@ -84,7 +82,7 @@
             <li>Long touches can also be used to remove calls, chats, messages, and contacts.</li>
             <li>Touch/long touch of contact icon can be used to install/remove image avatar.</li>
             <li>Long touch on an audio or video codec can be used to enable/disable the codec.</li>
-            <li>See <a href="https://github.com/juha-h/baresip-studio/wiki">Wiki</a> for more
+            <li>See <a href="https://github.com/Amin4424/baresip-pro-max/wiki">Wiki</a> for more
                 information.</li>
         </ul>
         <h2>Known Issues</h2>
@@ -93,10 +91,10 @@
         </ul>
         <h2>Privacy Policy</h2>
         <p>Privacy policy is available
-            <a href="https://raw.githubusercontent.com/juha-h/baresip-studio/video/PrivacyPolicy.txt">here</a>.</p>
+            <a href="https://raw.githubusercontent.com/Amin4424/baresip-pro-max/master/PrivacyPolicy.txt">here</a>.</p>
         <br>
         <h2>Source code</h2>
-        <p>Source code is available at <a href="https://github.com/juha-h/baresip-studio">GitHub</a>,
+        <p>Source code is available at <a href="https://github.com/Amin4424/baresip-pro-max">GitHub</a>,
             where also issues can be reported.</p>
         <br>
         <h2>Language translations</h2>
@@ -485,7 +483,7 @@
         in calling and messaging as references to SIP and tel URIs. baresip app does not store Android
         contacts nor share them with anyone.  In order to make Android contacts available in baresip,
         Google requires that you accept their use as described here and in app\'s
-        <a href="https://raw.githubusercontent.com/juha-h/baresip-studio/master/PrivacyPolicy.txt">Privacy Policy</a>.
+        <a href="https://raw.githubusercontent.com/Amin4424/baresip-pro-max/master/PrivacyPolicy.txt">Privacy Policy</a>.
     </string>
     <!-- Contact Activity -->
     <string name="new_contact">New Contact</string>

@@ -1,3 +1,0 @@
-- Ljudinställningen Microphone Gain har lagts till
-- Lagt till huvudmenyalternativet Logcat
-- Nya översättningar till tjeckiska, norska (bokmål), tyska, portugisiska (Brasilien) och spanska

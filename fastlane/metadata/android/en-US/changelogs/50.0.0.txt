@@ -1,3 +1,0 @@
-- Ask POST_NOTIFICATIONS permission on Android 13+ devices
-- Use gray Microphone icon when microphone is not turned off
-- Use "Busy Here" response message when call is rejected

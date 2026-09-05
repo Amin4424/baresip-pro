@@ -1,3 +1,0 @@
-- Fixad krasch när man återvänder till föregående aktivitet efter att ha fått
-  samtal eller meddelande.
-- Bättre hantering av närhetssensor och högtalartelefon.

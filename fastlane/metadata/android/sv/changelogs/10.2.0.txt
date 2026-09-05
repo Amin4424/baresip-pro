@@ -1,2 +1,0 @@
-- Stöd för G.726-codec har lagts till.
-- Förbättrad prioritetsordning för standardkodek.

@@ -1,4 +1,0 @@
-- Fixat och förbättrat implementeringen av DTMF Watcher.
-- Stängde av redigering av inkommande/utgående samtals URI när samtal pågår.
-- Förstörde användaragenten när kontot raderas.
-- Tog bort oanvänd KILL_BACKGROUND_PROCESSES-behörighet.

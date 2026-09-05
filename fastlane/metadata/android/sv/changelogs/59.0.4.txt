@@ -1,1 +1,0 @@
-- Uppströmsfix av krasch relaterad till hantering av OPTIONS-begäran

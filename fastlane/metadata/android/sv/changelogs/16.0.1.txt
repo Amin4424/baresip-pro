@@ -1,2 +1,0 @@
-- Omregistrera UA:er när ett nytt aktivt nätverk blir tillgängligt eller
-  när länkens egenskaper ändras även om IP-adresserna förblir desamma.

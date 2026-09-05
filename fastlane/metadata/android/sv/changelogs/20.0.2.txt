@@ -1,1 +1,0 @@
-- Fixar och förbättringar relaterade till knappen Dialpad.

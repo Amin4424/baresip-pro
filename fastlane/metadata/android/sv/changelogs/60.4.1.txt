@@ -1,2 +1,0 @@
-- SRTP-relaterad säkerhetsfix från uppströms
-- Nya tjeckiska översättningar

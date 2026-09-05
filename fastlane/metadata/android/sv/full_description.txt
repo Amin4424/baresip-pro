@@ -4,6 +4,6 @@ För närvarande stöder baresip-appen röstsamtal, textmeddelanden, röstbrevl�
 
 Utvecklingen av baresip-appen motiveras av behovet av en säker SIP-baserad VoIP-användaragent med öppen källkod för Android som inte är beroende av proprietära push-notifikationstjänster från tredje part.
 
-Om du behöver videosamtal och har en enhet med Android version 9 eller nyare som stöder Camera2 API på hårdvarusupportnivå LEVEL3 eller FULL, kan du istället för den här applikationen installera dess systerapplikation baresip+.
+Om du behöver videosamtal och har en enhet med Android version 9 eller nyare som stöder Camera2 API på hårdvarusupportnivå LEVEL3 eller FULL, kan du istället för den här applikationen installera dess systerapplikation Baresip Pro Max.
 
-Källkoden finns tillgänglig på <a href="https://github.com/juha-h/baresip-studio">GitHub</a>, där även problem kan rapporteras.
+Källkoden finns tillgänglig på <a href="https://github.com/Amin4424/baresip-pro-max">GitHub</a>, där även problem kan rapporteras.

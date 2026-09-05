@@ -1,2 +1,0 @@
-- Restored swipe left/right gesture to toggle between accounts
-- Account and Settings user interface fixes and improvements

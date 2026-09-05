@@ -1,2 +1,0 @@
-- Unlock locked screen and turn it on when new call is received
-- New translations (Portuguese (Brazil)

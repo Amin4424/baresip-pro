@@ -1,1 +1,0 @@
-- Förbättringar i dialogrutan för varningar.

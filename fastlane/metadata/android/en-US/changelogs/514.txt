@@ -1,3 +1,0 @@
-- Allow mobile calling when device is in airplane mode and wifi calling is enabled
-- Fixed showing of + character when making mobile call to international number
-- New translations (several languages)

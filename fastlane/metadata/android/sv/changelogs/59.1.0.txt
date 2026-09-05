@@ -1,1 +1,0 @@
-- Stöd för favoritkontakter (stjärnmärkta) har lagts till

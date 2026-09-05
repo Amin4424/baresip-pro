@@ -1,8 +1,12 @@
-Baresip is security focused open source communication app for Android that originally only supported SIP based VoIP calling and messaging.  Now baresip can also be chosen as Android's default mobile calling and messaging app.  In addition, contacts are integrated within the app. Voice conference calls, voicemail indication as well as blind and
-attended call transfers are available when VoIP is used. Multimedia messaging is not supported yet.
+Baresip Pro is a modern, privacy-first SIP (Session Initiation Protocol) client designed specifically for lightweight, high-performance voice communications on Android. It pairs the standard-compliant Baresip C audio engine with a fluid Jetpack Compose (Material 3) user interface.
 
-In VoIP calls audio can be coded with AMR, Codec2, G.729, G.722, G.722.1, iLBC, opus or PCMU/PCMA codecs. Security is achieved via TLS or WSS SIP signaling transport and ZRTP or (DTLS) SRTP media encapsulation.
+Features:
+• Crystal-Clear HD Audio: Wideband and fullband codecs including Opus, AMR-WB, AMR-NB, G.722, G.722.1, G.729, iLBC, Codec2, and standard G.711 (PCMA/PCMU).
+• Privacy & Security: End-to-end media encryption with ZRTP and SRTP (SDES and DTLS-SRTP), plus secure SIP signaling over TLS and WSS. Zero trackers, no telemetry.
+• Modern Material 3 Design: One-handed bottom navigation bar, ergonomic keypad dialer, dynamic color support, and automatic dark/light theme switching.
+• Integrated Communications: Multiple SIP accounts with live registration indicators, local call recording, contact management, and SIP instant messaging.
+• Native Performance: Powered by native C libraries (libre, libbaresip, OpenSSL) for low latency, fast startup, and minimal battery consumption.
 
-Baresip app can be installed on Android devices running Android version 9 or later.  Mobile calling and messaging needs Android version 10 or later. If you need video calling, you can instead of this app install its sister app baresip+.
+Looking for video calling? Check out Baresip Pro Max.
 
-Source code is available at <a href="https://github.com/juha-h/baresip-studio">GitHub</a>, where also issues can be reported.
+Source code and issue tracker: https://github.com/Amin4424/baresip-pro-max

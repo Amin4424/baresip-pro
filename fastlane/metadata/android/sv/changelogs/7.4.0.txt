@@ -1,3 +1,0 @@
-- Anpassade varningar till riktlinjer för materialdesign.
-- Förbättrad hantering av språksträngar.
-- Finsk språköversättning har lagts till som ett exempel.

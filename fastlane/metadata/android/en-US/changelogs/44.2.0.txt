@@ -1,2 +1,0 @@
-- Fixed crash on ARMv7 devices when message was received
-- New Portuguese (Brazil) translations

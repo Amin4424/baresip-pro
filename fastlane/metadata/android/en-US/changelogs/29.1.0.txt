@@ -1,3 +1,0 @@
-- Portuguese (Brazil) translations from Weblate
-- Fixed F-Droid nb-NO locale tag
-- Avoid 'duplicate finish request' warnings

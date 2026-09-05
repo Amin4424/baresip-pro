@@ -1,4 +1,0 @@
-- Improved device lock/unlock handling
-- In Settings, added link to Android settings
-- Properly check if Battery Optimizations setting has been changed
-- New Swedish and Portuguese (Brazil) translations

@@ -1,1 +1,0 @@
-- Tillåt mottagande av meddelanden efter att uppströms (som standard) nekat dem

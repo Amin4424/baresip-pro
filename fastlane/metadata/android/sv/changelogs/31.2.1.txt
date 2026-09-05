@@ -1,1 +1,0 @@
-- Korrigerad krasch när du väljer ett konto i kontoaktiviteten

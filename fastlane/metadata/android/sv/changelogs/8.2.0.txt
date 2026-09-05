@@ -1,3 +1,0 @@
-- Förbättrat innehåll och utseende på About-sidan.
-- Visar alltid det aktiva samtalet (om något) när appen startas om.
-- Ändrad placering av OK-knappen i varningsdialogen.

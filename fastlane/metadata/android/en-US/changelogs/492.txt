@@ -1,3 +1,0 @@
-- Ensure that ringback and busy tone are played in communication mode
-- Improved network and DNS server update management
-- New translations (Spanish)

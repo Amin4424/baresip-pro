@@ -1,1 +1,0 @@
-- Fixed initialization of account from network

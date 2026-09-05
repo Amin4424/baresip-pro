@@ -1,2 +1,0 @@
-- Fixed baresip contact long click alert
-- New translations (Chinese)

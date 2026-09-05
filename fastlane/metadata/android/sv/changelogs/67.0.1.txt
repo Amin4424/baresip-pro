@@ -1,3 +1,0 @@
-- Stoppa samtalstimern kronometer när samtalet är avslutat
-- Lägg till mikrofon i statusmeddelande endast när inspelningstillstånd har beviljats
-- Nya översättningar (tamil)

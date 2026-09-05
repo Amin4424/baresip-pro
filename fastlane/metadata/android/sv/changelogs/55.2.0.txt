@@ -1,2 +1,0 @@
-- Förutom CALL kan du även hantera DIAL-åtgärder från andra applikationer
-- Nya översättningar till spanska och portugisiska (Brasilien)

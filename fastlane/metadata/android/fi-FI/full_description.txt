@@ -7,6 +7,6 @@ Baresip-sovelluksen kehitystä motivoi tarve turvalliselle, avoimen lähdekoodin
 
 Tämä sovellus voidaan asentaa Android-laitteille, joiden Android-versio on 9 tai uudempi.  Mobiilipuhelut ja SMS-viestit vaativat vähintään Android-version 10.
 
-Jos haluat käyttää videopuheluita voit tämän sovelluksen sijaan asentaa sen sisarsovelluksen baresip+.
+Jos haluat käyttää videopuheluita voit tämän sovelluksen sijaan asentaa sen sisarsovelluksen Baresip Pro Max.
 
-Lähdekoodi on saatavilla <a href="https://github.com/juha-h/baresip-studio">GitHubissa</a>, jossa myös ongelmista voi ilmoittaa.
+Lähdekoodi on saatavilla <a href="https://github.com/Amin4424/baresip-pro-max">GitHubissa</a>, jossa myös ongelmista voi ilmoittaa.

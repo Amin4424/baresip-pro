@@ -1,2 +1,0 @@
-- Hämta DNS-servrar dynamiskt även när baresip startas för första gången.
-- Undvik möjlig krasch när du hämtar kontots ljudkodek.

@@ -8,6 +8,6 @@ Pengembangan baresip didorong oleh kebutuhan akan Agen Pengguna VoIP berbasis SI
 
 Aplikasi ini dapat dipasang pada perangkat Android yang menjalankan Android versi 9 atau lebih baru. Panggilan seluler memerlukan Android versi 10 atau lebih baru.
 
-Jika Anda memerlukan panggilan video, Anda dapat memasang aplikasi saudaranya yaitu baresip+ sebagai pengganti aplikasi ini.
+Jika Anda memerlukan panggilan video, Anda dapat memasang aplikasi saudaranya yaitu Baresip Pro Max sebagai pengganti aplikasi ini.
 
-Kode sumber tersedia di <a href="https://github.com/juha-h/baresip-studio">GitHub</a>, di mana masalah juga dapat dilaporkan.
+Kode sumber tersedia di <a href="https://github.com/Amin4424/baresip-pro-max">GitHub</a>, di mana masalah juga dapat dilaporkan.

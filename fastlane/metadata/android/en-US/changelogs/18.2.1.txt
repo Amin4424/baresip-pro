@@ -1,2 +1,0 @@
-- Fixed two chat related crashes.
-- Minor code improvements.

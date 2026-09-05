@@ -1,1 +1,0 @@
-- Korrigerad hantering av samtalsåtgärd när Baresip-appen inte körs.

@@ -1,2 +1,0 @@
-- Flera korrigeringar och förbättringar relaterade till användargränssnittet
-- Nya översättningar (portugisiska (Brasilien))

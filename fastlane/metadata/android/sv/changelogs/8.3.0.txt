@@ -1,2 +1,0 @@
-- Lade till Internet Low Bitrate Codec (iLBC).
-- Förbättrat val av codec för kontot.

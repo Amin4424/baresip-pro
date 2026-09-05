@@ -1,3 +1,0 @@
-- Added 'In-band RTP or SIP INFO' account DTMF Mode
-- Added Speaker Phone audio setting
-- New German, Portuguese (Brazil), and Spanish translations
