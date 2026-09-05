@@ -1,0 +1,186 @@
+name: Build & Release Baresip Pro
+
+on:
+  push:
+    tags:
+      - 'v*'
+      - '[0-9]+.[0-9]+*'
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build Type'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+          - 'release'
+          - 'debug'
+          - 'both'
+      create_release:
+        description: 'Create GitHub Release for this run'
+        required: false
+        default: true
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      # ------------------------------------------------------------------------
+      # 1. Checkout repository with all submodules
+      # ------------------------------------------------------------------------
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      # ------------------------------------------------------------------------
+      # 2. Setup Java 21 & Gradle cache
+      # ------------------------------------------------------------------------
+      - name: Set up OpenJDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle'
+
+      # ------------------------------------------------------------------------
+      # 3. Setup Android SDK, NDK, and CMake
+      # ------------------------------------------------------------------------
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK & Build Components
+        run: |
+          mkdir -p "${ANDROID_HOME}/licenses"
+          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > "${ANDROID_HOME}/licenses/android-sdk-license"
+          echo "84831b9409646a578e4404ca89021700a0f2ff3f" >> "${ANDROID_HOME}/licenses/android-sdk-license"
+          echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> "${ANDROID_HOME}/licenses/android-sdk-license"
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-37.0" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "ndk;29.0.14206865" \
+            "cmake;3.31.6"
+          if [ -d "${ANDROID_HOME}/platforms/android-37.0" ] && [ ! -d "${ANDROID_HOME}/platforms/android-37" ]; then
+            ln -s "${ANDROID_HOME}/platforms/android-37.0" "${ANDROID_HOME}/platforms/android-37"
+          fi
+
+      # ------------------------------------------------------------------------
+      # 4. Ensure voice distribution dependency
+      # ------------------------------------------------------------------------
+      - name: Verify or Unpack distribution
+        run: |
+          if [ -d "distribution" ]; then
+            echo "✅ distribution directory found."
+          elif [ -f "distribution.tar.xz" ]; then
+            echo "📦 Extracting distribution.tar.xz..."
+            tar -xf distribution.tar.xz
+          elif [ -f "distribution.tar.gz" ]; then
+            echo "📦 Extracting distribution.tar.gz..."
+            tar -xzf distribution.tar.gz
+          elif [ -n "${{ secrets.DISTRIBUTION_URL }}" ]; then
+            echo "🌐 Downloading distribution from secret URL..."
+            curl -fsSL "${{ secrets.DISTRIBUTION_URL }}" -o distribution.tar.xz
+            tar -xf distribution.tar.xz
+          else
+            echo "⚠️ Notice: distribution directory not found."
+          fi
+
+      # ------------------------------------------------------------------------
+      # 5. Build APK using Gradle Wrapper
+      # ------------------------------------------------------------------------
+      - name: Build with Gradle
+        run: |
+          chmod +x ./gradlew
+          if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ]; then
+            echo "⚠️ gradle-wrapper.jar not found, downloading..."
+            mkdir -p gradle/wrapper
+            curl -fsSL https://github.com/gradle/gradle/raw/master/gradle/wrapper/gradle-wrapper.jar -o gradle/wrapper/gradle-wrapper.jar || true
+          fi
+          BUILD_TARGET="${{ github.event.inputs.build_type || 'release' }}"
+          
+          if [ "$BUILD_TARGET" = "debug" ]; then
+            ./gradlew assembleDebug --no-daemon --stacktrace
+          elif [ "$BUILD_TARGET" = "both" ]; then
+            ./gradlew assembleDebug assembleRelease --no-daemon --stacktrace
+          else
+            ./gradlew assembleRelease --no-daemon --stacktrace
+          fi
+
+      # ------------------------------------------------------------------------
+      # 6. Prepare Artifacts & Checksums
+      # ------------------------------------------------------------------------
+      - name: Prepare Release Artifacts
+        id: prepare_artifacts
+        run: |
+          mkdir -p release-assets
+          VERSION_TAG="${{ github.ref_name }}"
+          [ -z "$VERSION_TAG" ] && VERSION_TAG="latest"
+
+          # Collect and organize all release APKs (Universal Global + Per-CPU splits)
+          find app/build/outputs/apk/release/ -type f -name "*.apk" | while read -r apk; do
+            filename=$(basename "$apk")
+            variant=$(echo "$filename" | sed -e 's/^app-//' -e 's/-release\.apk$//' -e 's/\.apk$//')
+            if [ -z "$variant" ] || [ "$variant" = "release" ] || [ "$variant" = "app" ]; then
+              variant="universal"
+            fi
+            target_name="baresip-pro-${VERSION_TAG}-${variant}.apk"
+            echo "📦 Packaging Release APK: $filename -> $target_name"
+            cp "$apk" "release-assets/$target_name"
+          done
+
+          # Collect and organize debug APKs (if generated)
+          find app/build/outputs/apk/debug/ -type f -name "*.apk" 2>/dev/null | while read -r apk; do
+            filename=$(basename "$apk")
+            variant=$(echo "$filename" | sed -e 's/^app-//' -e 's/-debug\.apk$//' -e 's/\.apk$//')
+            if [ -z "$variant" ] || [ "$variant" = "debug" ] || [ "$variant" = "app" ]; then
+              variant="universal"
+            fi
+            target_name="baresip-pro-${VERSION_TAG}-${variant}-debug.apk"
+            echo "📦 Packaging Debug APK: $filename -> $target_name"
+            cp "$apk" "release-assets/$target_name"
+          done
+
+          # Generate SHA256 checksums
+          cd release-assets
+          if compgen -G "*.apk" > /dev/null; then
+            sha256sum *.apk > SHA256SUMS-pro.txt
+            echo "Generated Checksums:"
+            cat SHA256SUMS-pro.txt
+          fi
+
+      # ------------------------------------------------------------------------
+      # 7. Upload Artifacts to Workflow Run
+      # ------------------------------------------------------------------------
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: baresip-pro-apks
+          path: release-assets/
+          retention-days: 14
+
+      # ------------------------------------------------------------------------
+      # 8. Create GitHub Release (On Tag Push or manual trigger with release enabled)
+      # ------------------------------------------------------------------------
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

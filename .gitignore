@@ -19,5 +19,6 @@ build
 /distribution.video
 .sentry-native/
 libbaresip-android/
+libbaresip-android.video/
 *.apk
 /output/

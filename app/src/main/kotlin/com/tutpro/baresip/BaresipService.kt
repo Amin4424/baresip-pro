@@ -3035,16 +3035,14 @@ class BaresipService: Service() {
         }
 
         val sipAccount = android.telecom.PhoneAccount.builder(sipHandle, getString(R.string.app_name))
-            .setCapabilities(android.telecom.PhoneAccount.CAPABILITY_SELF_MANAGED or
-                    android.telecom.PhoneAccount.CAPABILITY_SUPPORTS_VIDEO_CALLING)
+            .setCapabilities(android.telecom.PhoneAccount.CAPABILITY_SELF_MANAGED)
             .setIcon(android.graphics.drawable.Icon.createWithResource(this, R.mipmap.ic_launcher))
             .addSupportedUriScheme(android.telecom.PhoneAccount.SCHEME_SIP)
             .addSupportedUriScheme(android.telecom.PhoneAccount.SCHEME_TEL)
             .build()
 
         val pstnAccount = android.telecom.PhoneAccount.builder(pstnHandle, getString(R.string.app_name) + " Mobile")
-            .setCapabilities(android.telecom.PhoneAccount.CAPABILITY_CALL_PROVIDER or
-                    android.telecom.PhoneAccount.CAPABILITY_SUPPORTS_VIDEO_CALLING)
+            .setCapabilities(android.telecom.PhoneAccount.CAPABILITY_CALL_PROVIDER)
             .setIcon(android.graphics.drawable.Icon.createWithResource(this, R.mipmap.ic_launcher))
             .addSupportedUriScheme(android.telecom.PhoneAccount.SCHEME_SIP)
             .addSupportedUriScheme(android.telecom.PhoneAccount.SCHEME_TEL)

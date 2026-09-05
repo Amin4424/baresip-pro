@@ -52,10 +52,6 @@
     <uses-feature
         android:name="android.hardware.telephony"
         android:required="false" />
-    <uses-feature
-        android:name="android.hardware.camera"
-        android:required="false" />
-
     <application
         android:name=".BaresipApp"
         android:icon="@mipmap/ic_launcher"
@@ -65,7 +61,7 @@
         android:supportsRtl="true"
         android:largeHeap="true"
         android:enableOnBackInvokedCallback="true"
-        android:theme="@style/Theme.Material3.DayNight.NoActionBar"
+        android:theme="@style/Theme.BaresipPro"
         tools:remove="android:appComponentFactory"
         tools:targetApi="33">
 
@@ -217,6 +213,9 @@
             android:exported="true"
             tools:ignore="ExportedReceiver" >
             <intent-filter>
+                <action android:name="io.github.amin4424.baresip.pro.REGISTER" />
+                <action android:name="io.github.amin4424.baresip.pro.UNREGISTER" />
+                <action android:name="io.github.amin4424.baresip.pro.QUIT" />
                 <action android:name="com.tutpro.baresip.REGISTER" />
                 <action android:name="com.tutpro.baresip.UNREGISTER" />
                 <action android:name="com.tutpro.baresip.QUIT" />

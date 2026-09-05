@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="app_name" translatable="false">baresip</string>
-    <string name="app_name_plus" translatable="false">baresip+</string>
+    <string name="app_name" translatable="false">Baresip Pro</string>
+    <string name="app_name_plus" translatable="false">Baresip Pro</string>
     <!-- About Activity -->
-    <string name="about_title">About baresip</string>
-    <string name="about_title_plus">About baresip+</string>
+    <string name="about_title">About Baresip Pro</string>
+    <string name="about_title_plus">About Baresip Pro</string>
     <string name="about_text">
         <![CDATA[
         <h1>SIP and mobile calling User Agent based on
@@ -692,4 +692,14 @@
     <string name="hold">Hold</string>
     <string name="resume">Resume</string>
     <string name="keypad">Keypad</string>
+    <string name="blocked_delete_alert">Do you want to delete blocked requests of \'%1$s\'?</string>
+    <string name="on_hold">On Hold</string>
+    <string name="enter_uri">Enter name, number or address...</string>
+    <string name="no_account_found">No account found</string>
+    <string name="no_call_history">No Call History</string>
+    <string name="no_call_history_help">Calls you make or receive with this account will appear here.</string>
+    <string name="history_disabled">Call History Disabled</string>
+    <string name="history_disabled_help">Call history recording is turned off for this account.</string>
+    <string name="no_chats">No Messages</string>
+    <string name="no_chats_help">Messages sent and received for this account will appear here.</string>
 </resources>

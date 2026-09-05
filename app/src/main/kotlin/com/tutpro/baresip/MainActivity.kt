@@ -28,11 +28,26 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.Observer
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.core.content.ContextCompat
 import kotlin.system.exitProcess
@@ -242,58 +257,191 @@ class MainActivity : ComponentActivity() {
 
             AppTheme {
 
-                navController = rememberNavController()
+                var showSplash by rememberSaveable { mutableStateOf(!atStartup) }
 
-                LaunchedEffect(key1 = viewModel) {
-                    viewModel.navigationCommand.collect { command ->
-                        Log.d(TAG, "MainActivity: Received NavigationCommand: $command")
-                        when (command) {
-                            is NavigationCommand.NavigateToChat -> {
-                                val route = "chat/${command.aor}/${command.peerUri}"
-                                navController.navigate(route) { launchSingleTop = true }
-                            }
-                            is NavigationCommand.NavigateToCalls -> {
-                                val route = "calls/${command.aor}"
-                                navController.navigate(route) { launchSingleTop = true }
-                            }
-                            is NavigationCommand.NavigateToChats ->
-                                navController.navigate("chats") { launchSingleTop = true }
-                            is NavigationCommand.NavigateToCall ->
-                                navController.navigate("call")
-                            is NavigationCommand.NavigateToHome ->
-                                navController.navigate("main") {
-                                    popUpTo("main") { inclusive = true }
+                Box(modifier = Modifier.fillMaxSize()) {
+
+                    navController = rememberNavController()
+
+                    LaunchedEffect(key1 = viewModel) {
+                        viewModel.navigationCommand.collect { command ->
+                            Log.d(TAG, "MainActivity: Received NavigationCommand: $command")
+                            when (command) {
+                                is NavigationCommand.NavigateToChat -> {
+                                    val route = "chat/${command.aor}/${command.peerUri}"
+                                    navController.navigate(route) { launchSingleTop = true }
                                 }
+                                is NavigationCommand.NavigateToCalls -> {
+                                    val route = "calls/${command.aor}"
+                                    navController.navigate(route) { launchSingleTop = true }
+                                }
+                                is NavigationCommand.NavigateToChats ->
+                                    navController.navigate("chats") { launchSingleTop = true }
+                                is NavigationCommand.NavigateToCall -> {
+                                    if (navController.currentDestination?.route != "call") {
+                                        navController.navigate("call") {
+                                            launchSingleTop = true
+                                        }
+                                    }
+                                }
+                                is NavigationCommand.NavigateToHome -> {
+                                    viewModel.setDialpadVisible(true)
+                                    navController.navigate("main") {
+                                        popUpTo("main") { inclusive = true }
+                                    }
+                                }
+                            }
                         }
                     }
-                }
 
-                NavHost(navController, startDestination = "main") {
-                    mainScreenRoute(
+                    fun getBottomNavIndex(route: String?): Int {
+                        if (route == null) return -1
+                        return when {
+                            route == "main" -> 0
+                            route == "contacts" -> 1
+                            route.startsWith("calls") -> 2
+                            route.startsWith("chats") -> 3
+                            else -> -1
+                        }
+                    }
+
+                    NavHost(
                         navController = navController,
-                        viewModel = viewModel,
-                        onRequestPermissions = { requestPermissionsLauncher.launch(permissions) },
-                        onRestartApp = { restartApp() },
-                        onQuitApp = { quitApp() }
-                    )
-                    callScreenRoute(navController, viewModel)
-                    aboutScreenRoute(navController)
-                    settingsScreenRoute(
-                        navController = navController,
-                        onRestartApp = { restartApp() }
-                    )
-                    accountsScreenRoute(navController)
-                    audioScreenRoute(navController)
-                    accountScreenRoute(navController)
-                    codecsScreenRoute(navController)
-                    contactsScreenRoute(navController)
-                    contactScreenRoute(navController, viewModel)
-                    callsScreenRoute(navController, viewModel)
-                    callDetailsScreenRoute(navController, viewModel)
-                    blockedScreenRoute(navController)
-                    blockingScreenRoute(navController)
-                    chatsScreenRoute(navController)
-                    chatScreenRoute(navController, viewModel)
+                        startDestination = "main",
+                        enterTransition = {
+                            val from = getBottomNavIndex(initialState.destination.route)
+                            val to = getBottomNavIndex(targetState.destination.route)
+                            if (from != -1 && to != -1) {
+                                if (to > from) {
+                                    slideInHorizontally(
+                                        initialOffsetX = { fullWidth -> fullWidth },
+                                        animationSpec = tween(300)
+                                    ) + fadeIn(animationSpec = tween(300))
+                                } else {
+                                    slideInHorizontally(
+                                        initialOffsetX = { fullWidth -> -fullWidth },
+                                        animationSpec = tween(300)
+                                    ) + fadeIn(animationSpec = tween(300))
+                                }
+                            } else {
+                                slideInHorizontally(
+                                    initialOffsetX = { fullWidth -> fullWidth },
+                                    animationSpec = tween(300)
+                                ) + fadeIn(animationSpec = tween(300))
+                            }
+                        },
+                        exitTransition = {
+                            val from = getBottomNavIndex(initialState.destination.route)
+                            val to = getBottomNavIndex(targetState.destination.route)
+                            if (from != -1 && to != -1) {
+                                if (to > from) {
+                                    slideOutHorizontally(
+                                        targetOffsetX = { fullWidth -> -fullWidth },
+                                        animationSpec = tween(300)
+                                    ) + fadeOut(animationSpec = tween(300))
+                                } else {
+                                    slideOutHorizontally(
+                                        targetOffsetX = { fullWidth -> fullWidth },
+                                        animationSpec = tween(300)
+                                    ) + fadeOut(animationSpec = tween(300))
+                                }
+                            } else {
+                                slideOutHorizontally(
+                                    targetOffsetX = { fullWidth -> -fullWidth / 4 },
+                                    animationSpec = tween(300)
+                                ) + fadeOut(animationSpec = tween(300))
+                            }
+                        },
+                        popEnterTransition = {
+                            val from = getBottomNavIndex(initialState.destination.route)
+                            val to = getBottomNavIndex(targetState.destination.route)
+                            if (from != -1 && to != -1) {
+                                if (to > from) {
+                                    slideInHorizontally(
+                                        initialOffsetX = { fullWidth -> fullWidth },
+                                        animationSpec = tween(300)
+                                    ) + fadeIn(animationSpec = tween(300))
+                                } else {
+                                    slideInHorizontally(
+                                        initialOffsetX = { fullWidth -> -fullWidth },
+                                        animationSpec = tween(300)
+                                    ) + fadeIn(animationSpec = tween(300))
+                                }
+                            } else {
+                                slideInHorizontally(
+                                    initialOffsetX = { fullWidth -> -fullWidth / 4 },
+                                    animationSpec = tween(300)
+                                ) + fadeIn(animationSpec = tween(300))
+                            }
+                        },
+                        popExitTransition = {
+                            val from = getBottomNavIndex(initialState.destination.route)
+                            val to = getBottomNavIndex(targetState.destination.route)
+                            if (from != -1 && to != -1) {
+                                if (to > from) {
+                                    slideOutHorizontally(
+                                        targetOffsetX = { fullWidth -> -fullWidth },
+                                        animationSpec = tween(300)
+                                    ) + fadeOut(animationSpec = tween(300))
+                                } else {
+                                    slideOutHorizontally(
+                                        targetOffsetX = { fullWidth -> fullWidth },
+                                        animationSpec = tween(300)
+                                    ) + fadeOut(animationSpec = tween(300))
+                                }
+                            } else {
+                                slideOutHorizontally(
+                                    targetOffsetX = { fullWidth -> fullWidth },
+                                    animationSpec = tween(300)
+                                ) + fadeOut(animationSpec = tween(300))
+                            }
+                        }
+                    ) {
+                        mainScreenRoute(
+                            navController = navController,
+                            viewModel = viewModel,
+                            onRequestPermissions = { requestPermissionsLauncher.launch(permissions) },
+                            onRestartApp = { restartApp() },
+                            onQuitApp = { quitApp() }
+                        )
+                        callScreenRoute(navController, viewModel)
+                        aboutScreenRoute(navController)
+                        settingsScreenRoute(
+                            navController = navController,
+                            onRestartApp = { restartApp() }
+                        )
+                        accountsScreenRoute(navController)
+                        audioScreenRoute(navController)
+                        accountScreenRoute(navController)
+                        codecsScreenRoute(navController)
+                        contactsScreenRoute(navController, viewModel)
+                        contactScreenRoute(navController, viewModel)
+                        callsScreenRoute(navController, viewModel)
+                        callDetailsScreenRoute(navController, viewModel)
+                        blockedScreenRoute(navController)
+                        blockingScreenRoute(navController)
+                        chatsScreenRoute(navController, viewModel)
+                        chatScreenRoute(navController, viewModel)
+                    }
+
+                    val navBackStackEntry by navController.currentBackStackEntryAsState()
+                    val currentRoute = navBackStackEntry?.destination?.route
+                    val showBottomBar = getBottomNavIndex(currentRoute) != -1
+
+                    AnimatedVisibility(
+                        visible = showBottomBar && !showSplash,
+                        enter = fadeIn(animationSpec = tween(200)),
+                        exit = fadeOut(animationSpec = tween(200)),
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                    ) {
+                        BottomNavigationBar(this@MainActivity, viewModel, navController)
+                    }
+
+                    if (showSplash) {
+                        SplashScreen(
+                            onFinish = { showSplash = false }
+                        )
+                    }
                 }
             }
         }

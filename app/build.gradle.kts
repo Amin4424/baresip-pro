@@ -10,11 +10,11 @@ configure<ApplicationExtension> {
     compileSdk = 37
     ndkVersion = "29.0.14206865"
     defaultConfig {
-        applicationId = "com.tutpro.baresip"
+        applicationId = "io.github.amin4424.baresip.pro"
         minSdk = 28
         targetSdk = 36
-        versionCode = 549
-        versionName = "90.0.0"
+        versionCode = 1
+        versionName = "1.0.0"
         @Suppress("UnstableApiUsage")
         externalNativeBuild {
             cmake {
@@ -24,15 +24,32 @@ configure<ApplicationExtension> {
         }
         ndk {
             // noinspection ChromeOsAbiSupport
-            abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a"))
+            abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a", "x86_64"))
         }
         vectorDrawables.useSupportLibrary = true
+    }
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = true
+        }
+    }
+    signingConfigs {
+        create("release") {
+            storeFile = file("baresip-pro-release.keystore")
+            storePassword = "baresip123"
+            keyAlias = "pro"
+            keyPassword = "baresip123"
+        }
     }
     buildTypes {
         debug {
             ndk { abiFilters.add("x86_64") }
         }
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -53,6 +70,19 @@ configure<ApplicationExtension> {
         }
     }
     namespace = "com.tutpro.baresip"
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+        resources {
+            excludes += listOf(
+                "META-INF/LICENSE*",
+                "META-INF/NOTICE*",
+                "META-INF/*.version"
+            )
+        }
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
