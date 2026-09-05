@@ -91,27 +91,6 @@ You can download the latest ready-to-install signed APKs directly from GitHub [*
 
 ---
 
-## 🛠️ Building From Source
-
-If you want to build the project yourself:
-
-```bash
-# Clone the repository with submodules
-git clone --recurse-submodules https://github.com/Amin4424/baresip-pro-max.git
-cd baresip-pro-max
-
-# Assemble the release APK
-./gradlew assembleRelease
-```
-
-Or build inside an isolated container with Docker:
-
-```bash
-docker compose -f docker/docker-compose.yml run --rm build-release
-```
-
----
-
 ## 📄 License & Credits
 
 - **License**: Distributed under the [BSD 3-Clause License](LICENSE).
