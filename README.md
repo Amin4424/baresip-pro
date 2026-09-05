@@ -56,13 +56,13 @@ Whether connecting to enterprise PBXs (such as Asterisk, FreePBX, Kamailio, Open
 ## 📸 Screenshots
 
 <p align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/shot1.png" width="230" alt="Incoming Call Screen" />
-  &nbsp;&nbsp;
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/shot2.png" width="230" alt="Dialpad & Bottom Navigation" />
-  &nbsp;&nbsp;
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/shot3.png" width="230" alt="Contacts & Accounts" />
-  &nbsp;&nbsp;
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/shot4.png" width="230" alt="Settings & Codecs" />
+  <img src="docs/images/screen_main.png" width="220" alt="Main Dialer & Video Call" />
+  &nbsp;
+  <img src="docs/images/screen_contacts.png" width="220" alt="Contacts & Quick Actions" />
+  &nbsp;
+  <img src="docs/images/screen_accounts.png" width="220" alt="SIP Accounts Management" />
+  &nbsp;
+  <img src="docs/images/screen_chats.png" width="220" alt="Chat & Messaging" />
 </p>
 
 ---
