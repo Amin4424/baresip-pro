@@ -9,22 +9,32 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Amin4424/baresip-studio/releases/latest">
-    <img src="https://img.shields.io/github/v/release/Amin4424/baresip-studio?color=blue&label=Download%20APK&logo=android" alt="Download APK" />
+  <a href="https://github.com/Amin4424/baresip-pro-max/releases/latest">
+    <img src="https://img.shields.io/github/v/release/Amin4424/baresip-pro-max?color=blue&label=Download%20APK&logo=android" alt="Download APK" />
   </a>
   <img src="https://img.shields.io/badge/Android-9.0%2B%20(API%2028%2B)-brightgreen?logo=android" alt="Android Version" />
   <img src="https://img.shields.io/badge/Architecture-arm64--v8a%20%7C%20x86__64-orange" alt="Supported Architectures" />
   <img src="https://img.shields.io/badge/UI-Jetpack%20Compose%20%7C%20Material%203-purple?logo=jetpackcompose" alt="Material 3" />
-  <img src="https://img.shields.io/badge/License-GPL%203.0-blue.svg" alt="License" />
+  <img src="https://img.shields.io/badge/License-BSD--3--Clause-blue.svg" alt="License" />
 </p>
 
 ---
 
 ## 📱 About Baresip Pro Max
 
-**Baresip Pro Max** is a powerful, privacy-first SIP (Session Initiation Protocol) client designed from the ground up for modern Android devices. Combining a state-of-the-art C/C++ real-time communications engine with a clean, fluid **Jetpack Compose (Material 3)** user interface, Baresip Pro Max delivers carrier-grade audio, crystal-clear high-definition video calling, and airtight end-to-end security.
+**Baresip Pro Max** is a modern, privacy-first SIP (Session Initiation Protocol) client designed from the ground up for modern Android devices. It combines the rock-solid, industry-standard Baresip C/C++ real-time communications engine with a completely reimagined, fluid **Jetpack Compose (Material 3)** user interface.
 
 Whether connecting to enterprise PBXs (such as Asterisk, FreePBX, Kamailio, OpenSIPS) or standard SIP providers, Baresip Pro Max gives you full control over your communications without proprietary lock-in, tracking, or telemetry.
+
+---
+
+## 💡 Why Baresip Pro Max? (Fork Philosophy)
+
+**Baresip Pro Max** is a friendly, independent fork of the well-known [Baresip+](https://github.com/juha-h/baresip-studio) by Juha Heinanen.
+
+* **🎯 Completely Re-engineered UI**: The legacy XML views and layouts have been replaced with a fluid, modern **Jetpack Compose** interface following Material 3 design principles. This brings one-handed navigation, an ergonomic dialer, modern call screens, high-definition video previews, and seamless dark/light theme transitions.
+* **⚡ Battle-Tested Core Engine**: We do not reinvent the wheel on SIP signaling or RTP media. The underlying engine remains 100% faithful to **Baresip** (`libre`, `librem`, `libbaresip`, and OpenSSL). All media codecs, ZRTP/SRTP encryption, and network transports run on the trusted native C stack.
+* **🔄 Seamless Upstream Synchronization**: Because the modern UI layer is decoupled from the background service (`BaresipService.kt`) and native C core, upstream bugfixes, security advisories, and protocol updates can easily be merged while preserving the modern UI experience.
 
 ---
 
@@ -71,8 +81,8 @@ Whether connecting to enterprise PBXs (such as Asterisk, FreePBX, Kamailio, Open
 
 You can download the latest ready-to-install signed APK directly from GitHub:
 
-1. Go to the [**Releases Page**](https://github.com/Amin4424/baresip-studio/releases).
-2. Download the latest `baresip-plus-*-release.apk`.
+1. Go to the [**Releases Page**](https://github.com/Amin4424/baresip-pro-max/releases).
+2. Download the latest `baresip-promax-*-release.apk`.
 3. Open the downloaded file on your Android device and confirm installation.
 
 > **System Requirements**: Android 9.0 (Pie / API level 28) or higher. Device support for Camera2 API (LIMITED or higher) is required for video calling.
@@ -85,8 +95,8 @@ If you want to build the project yourself:
 
 ```bash
 # Clone the repository with submodules
-git clone --recurse-submodules https://github.com/Amin4424/baresip-studio.git
-cd baresip-studio
+git clone --recurse-submodules https://github.com/Amin4424/baresip-pro-max.git
+cd baresip-pro-max
 
 # Assemble the release APK
 ./gradlew assembleRelease
@@ -102,6 +112,7 @@ docker compose -f docker/docker-compose.yml run --rm build-release
 
 ## 📄 License & Credits
 
-- **License**: Distributed under the [GNU General Public License v3.0 (GPL-3.0)](LICENSE).
-- **Core Engine**: Based on the [baresip](https://github.com/baresip/baresip) project by Alfred E. Heggestad and [baresip-studio](https://github.com/juha-h/baresip-studio) by Juha Heinanen.
-- **Maintained by**: [Amin4424](https://github.com/Amin4424).
+- **License**: Distributed under the [BSD 3-Clause License](LICENSE).
+- **Original Baresip Project**: Developed by Alfred E. Heggestad and the [Creytiv Baresip community](https://github.com/baresip/baresip).
+- **Upstream Baresip+**: Authored by Juha Heinanen / [TutPro Inc.](https://github.com/juha-h/baresip-studio).
+- **Baresip Pro Max**: Modern Jetpack Compose UI, video enhancements, and packaging maintained by [Amin4424](https://github.com/Amin4424).
