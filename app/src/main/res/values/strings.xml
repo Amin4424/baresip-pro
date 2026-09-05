@@ -696,6 +696,7 @@
     <string name="on_hold">On Hold</string>
     <string name="enter_uri">Enter name, number or address...</string>
     <string name="no_account_found">No account found</string>
+    <string name="no_account_available">No account available</string>
     <string name="no_call_history">No Call History</string>
     <string name="no_call_history_help">Calls you make or receive with this account will appear here.</string>
     <string name="history_disabled">Call History Disabled</string>
