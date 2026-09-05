@@ -1,4 +1,4 @@
-name: Build & Release Baresip+
+name: Build & Release Baresip Pro max
 
 on:
   push:
@@ -61,14 +61,21 @@ jobs:
 
       - name: Install Android NDK & Build Components
         run: |
-          echo "y" | sdkmanager --licenses > /dev/null 2>&1
+          mkdir -p "${ANDROID_HOME}/licenses"
+          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > "${ANDROID_HOME}/licenses/android-sdk-license"
+          echo "84831b9409646a578e4404ca89021700a0f2ff3f" >> "${ANDROID_HOME}/licenses/android-sdk-license"
+          echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> "${ANDROID_HOME}/licenses/android-sdk-license"
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
           sdkmanager --install \
             "platform-tools" \
-            "platforms;android-37" \
+            "platforms;android-37.0" \
             "platforms;android-36" \
-            "build-tools;35.0.0" \
+            "build-tools;36.0.0" \
             "ndk;29.0.14206865" \
-            "cmake;3.22.1"
+            "cmake;3.31.6"
+          if [ -d "${ANDROID_HOME}/platforms/android-37.0" ] && [ ! -d "${ANDROID_HOME}/platforms/android-37" ]; then
+            ln -s "${ANDROID_HOME}/platforms/android-37.0" "${ANDROID_HOME}/platforms/android-37"
+          fi
 
       # ------------------------------------------------------------------------
       # 4. Ensure distribution.video dependency
@@ -120,12 +127,12 @@ jobs:
 
           # Collect and organize release APK
           if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
-            cp "app/build/outputs/apk/release/app-release.apk" "release-assets/baresip-plus-${VERSION_TAG}-release.apk"
+            cp "app/build/outputs/apk/release/app-release.apk" "release-assets/baresip-promax-${VERSION_TAG}-release.apk"
           fi
 
           # Collect and organize debug APK (if generated)
           if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
-            cp "app/build/outputs/apk/debug/app-debug.apk" "release-assets/baresip-plus-${VERSION_TAG}-debug.apk"
+            cp "app/build/outputs/apk/debug/app-debug.apk" "release-assets/baresip-promax-${VERSION_TAG}-debug.apk"
           fi
 
           # Generate SHA256 checksums
@@ -142,7 +149,7 @@ jobs:
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: baresip-plus-apks
+          name: baresip-promax-apks
           path: release-assets/
           retention-days: 14
 

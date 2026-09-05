@@ -48,12 +48,14 @@ RUN mkdir -p ${ANDROID_SDK_ROOT}/cmdline-tools && \
 RUN yes | sdkmanager --licenses && \
     sdkmanager \
         "platform-tools" \
-        "platforms;android-37" \
+        "platforms;android-37.0" \
         "platforms;android-36" \
-        "platforms;android-34" \
-        "build-tools;35.0.0" \
+        "build-tools;36.0.0" \
         "ndk;${ANDROID_NDK_VERSION}" \
-        "cmake;3.22.1"
+        "cmake;3.31.6" && \
+    if [ -d "${ANDROID_SDK_ROOT}/platforms/android-37.0" ] && [ ! -d "${ANDROID_SDK_ROOT}/platforms/android-37" ]; then \
+        ln -s "${ANDROID_SDK_ROOT}/platforms/android-37.0" "${ANDROID_SDK_ROOT}/platforms/android-37"; \
+    fi
 
 # Create build workspace directory
 WORKDIR /workspace
