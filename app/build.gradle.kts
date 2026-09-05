@@ -28,6 +28,14 @@ configure<ApplicationExtension> {
         }
         vectorDrawables.useSupportLibrary = true
     }
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "x86_64")
+            isUniversalApk = true
+        }
+    }
     signingConfigs {
         create("release") {
             storeFile = file("baresip-promax-release.keystore")
@@ -58,6 +66,18 @@ configure<ApplicationExtension> {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
             version = "3.31.6"
+        }
+    }
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+        resources {
+            excludes += listOf(
+                "META-INF/LICENSE*",
+                "META-INF/NOTICE*",
+                "META-INF/*.version"
+            )
         }
     }
     namespace = "com.tutpro.baresip.plus"

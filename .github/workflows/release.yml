@@ -130,15 +130,29 @@ jobs:
           VERSION_TAG="${{ github.ref_name }}"
           [ -z "$VERSION_TAG" ] && VERSION_TAG="latest"
 
-          # Collect and organize release APK
-          if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
-            cp "app/build/outputs/apk/release/app-release.apk" "release-assets/baresip-promax-${VERSION_TAG}-release.apk"
-          fi
+          # Collect and organize all release APKs (Universal Global + Per-CPU splits)
+          find app/build/outputs/apk/release/ -type f -name "*.apk" | while read -r apk; do
+            filename=$(basename "$apk")
+            variant=$(echo "$filename" | sed -e 's/^app-//' -e 's/-release\.apk$//' -e 's/\.apk$//')
+            if [ -z "$variant" ] || [ "$variant" = "release" ] || [ "$variant" = "app" ]; then
+              variant="universal"
+            fi
+            target_name="baresip-promax-${VERSION_TAG}-${variant}.apk"
+            echo "📦 Packaging Release APK: $filename -> $target_name"
+            cp "$apk" "release-assets/$target_name"
+          done
 
-          # Collect and organize debug APK (if generated)
-          if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
-            cp "app/build/outputs/apk/debug/app-debug.apk" "release-assets/baresip-promax-${VERSION_TAG}-debug.apk"
-          fi
+          # Collect and organize debug APKs (if generated)
+          find app/build/outputs/apk/debug/ -type f -name "*.apk" 2>/dev/null | while read -r apk; do
+            filename=$(basename "$apk")
+            variant=$(echo "$filename" | sed -e 's/^app-//' -e 's/-debug\.apk$//' -e 's/\.apk$//')
+            if [ -z "$variant" ] || [ "$variant" = "debug" ] || [ "$variant" = "app" ]; then
+              variant="universal"
+            fi
+            target_name="baresip-promax-${VERSION_TAG}-${variant}-debug.apk"
+            echo "📦 Packaging Debug APK: $filename -> $target_name"
+            cp "$apk" "release-assets/$target_name"
+          done
 
           # Generate SHA256 checksums
           cd release-assets

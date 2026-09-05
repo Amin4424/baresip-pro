@@ -79,11 +79,13 @@ Whether connecting to enterprise PBXs (such as Asterisk, FreePBX, Kamailio, Open
 
 ## 📥 Download & Installation
 
-You can download the latest ready-to-install signed APK directly from GitHub:
+You can download the latest ready-to-install signed APKs directly from GitHub [**Releases**](https://github.com/Amin4424/baresip-pro-max/releases):
 
-1. Go to the [**Releases Page**](https://github.com/Amin4424/baresip-pro-max/releases).
-2. Download the latest `baresip-promax-*-release.apk`.
-3. Open the downloaded file on your Android device and confirm installation.
+| APK Variant | Target Devices | Size | Notes |
+| :--- | :--- | :--- | :--- |
+| **`*-arm64-v8a.apk`** | Modern Android Phones & Tablets | **Smallest (~30MB)** | 🌟 **Recommended** for 99% of physical Android devices |
+| **`*-universal.apk`** | Any Android Device | Standard | **Global release** — contains all architectures in one package |
+| **`*-x86_64.apk`** | Android Studio Emulator / PC / ChromeOS | **Smallest (~30MB)** | Tailored for 64-bit x86 Intel & AMD systems |
 
 > **System Requirements**: Android 9.0 (Pie / API level 28) or higher. Device support for Camera2 API (LIMITED or higher) is required for video calling.
 
