@@ -188,14 +188,13 @@ private fun ChatsScreen(navController: NavController, viewModel: ViewModel, aor:
                     onBack = { navController.navigateUp() }
                 )
         },
-        bottomBar = { BottomNavigationBar(ctx, viewModel, navController) },
         content = { contentPadding ->
             if (areMessagesLoaded) {
                 if (account != null) {
                     ChatsContent(navController, contentPadding, account, uaMessages)
                 } else {
                     Column(
-                        modifier = Modifier.fillMaxSize().padding(contentPadding),
+                        modifier = Modifier.fillMaxSize().padding(contentPadding).padding(bottom = 80.dp),
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -403,7 +402,7 @@ private fun Chats(
             .verticalScrollbar(state = lazyListState),
         reverseLayout = true,
         state = lazyListState,
-        contentPadding = PaddingValues(bottom = bottomPadding + 16.dp),
+        contentPadding = PaddingValues(bottom = bottomPadding + 80.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(items = uaMessages.value, key = { message -> message.timeStamp }) { message ->

@@ -614,9 +614,6 @@ private fun ContactsScreen(navController: NavController, viewModel: ViewModel) {
                 )
             }
         },
-        bottomBar = {
-            BottomNavigationBar(ctx, viewModel, navController)
-        },
         content = { contentPadding ->
             ContactsContent(
                 ctx,
@@ -829,7 +826,7 @@ private fun ContactsContent(
                     .weight(1f)
                     .verticalScrollbar(state = lazyListState),
                 state = lazyListState,
-                contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding() + 16.dp),
+                contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding() + 80.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 groupedContacts.forEach { (letter, contactsInGroup) ->

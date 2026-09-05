@@ -694,34 +694,26 @@ private fun MainScreen(
                 }
             }
         ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                Scaffold(
-                    modifier = Modifier.fillMaxSize().imePadding(),
-                    containerColor = MaterialTheme.colorScheme.background,
-                    topBar = {
-                        TopAppBar(
-                            viewModel = viewModel,
-                            navController = navController,
-                            onSettingsClick = { navController.navigate("settings") },
-                            onAccountsClick = { navController.navigate("accounts") },
-                            onBackupClick = { launchBackupRequest() },
-                            onRestoreClick = { launchRestoreRequest() },
-                            onLogcatClick = { launchLogcatRequest() },
-                            onRestartClick = onRestartClick,
-                            onQuitClick = onQuitClick
-                        )
-                    },
-                    content = { contentPadding ->
-                        MainContent(navController, viewModel, contentPadding)
-                    }
-                )
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                ) {
-                    BottomNavigationBar(ctx, viewModel, navController)
+            Scaffold(
+                modifier = Modifier.fillMaxSize().imePadding(),
+                containerColor = MaterialTheme.colorScheme.background,
+                topBar = {
+                    TopAppBar(
+                        viewModel = viewModel,
+                        navController = navController,
+                        onSettingsClick = { navController.navigate("settings") },
+                        onAccountsClick = { navController.navigate("accounts") },
+                        onBackupClick = { launchBackupRequest() },
+                        onRestoreClick = { launchRestoreRequest() },
+                        onLogcatClick = { launchLogcatRequest() },
+                        onRestartClick = onRestartClick,
+                        onQuitClick = onQuitClick
+                    )
+                },
+                content = { contentPadding ->
+                    MainContent(navController, viewModel, contentPadding)
                 }
-            }
+            )
         }
     }
 }

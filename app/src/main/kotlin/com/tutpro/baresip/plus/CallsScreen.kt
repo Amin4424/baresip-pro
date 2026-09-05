@@ -207,14 +207,13 @@ private fun CallsScreen(navController: NavController, viewModel: ViewModel, aor:
                     )
             }
         },
-        bottomBar = { BottomNavigationBar(ctx, viewModel, navController) },
         content = { contentPadding ->
             if (isHistoryLoaded) {
                 if (ua != null) {
                     CallsContent(ctx, navController, viewModel, contentPadding, ua, callHistory)
                 } else {
                     Column(
-                        modifier = Modifier.fillMaxSize().padding(contentPadding),
+                        modifier = Modifier.fillMaxSize().padding(contentPadding).padding(bottom = 80.dp),
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -512,7 +511,7 @@ private fun Calls(
             .fillMaxWidth()
             .verticalScrollbar(state = lazyListState),
         state = lazyListState,
-        contentPadding = PaddingValues(bottom = bottomPadding + 16.dp),
+        contentPadding = PaddingValues(bottom = bottomPadding + 80.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         groupedHistory.forEach { (dateGroup, callsInGroup) ->

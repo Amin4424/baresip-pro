@@ -32,6 +32,7 @@ import androidx.activity.viewModels
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.Observer
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -43,9 +44,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.core.content.ContextCompat
 import kotlin.system.exitProcess
@@ -430,6 +433,19 @@ class MainActivity : ComponentActivity() {
                     blockingScreenRoute(navController)
                     chatsScreenRoute(navController, viewModel)
                     chatScreenRoute(navController, viewModel)
+                }
+
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentRoute = navBackStackEntry?.destination?.route
+                val showBottomBar = getBottomNavIndex(currentRoute) != -1
+
+                AnimatedVisibility(
+                    visible = showBottomBar && !showSplash,
+                    enter = fadeIn(animationSpec = tween(200)),
+                    exit = fadeOut(animationSpec = tween(200)),
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                ) {
+                    BottomNavigationBar(this@MainActivity, viewModel, navController)
                 }
 
                 if (showSplash) {
