@@ -1,0 +1,26 @@
+services:
+  builder:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: baresip-studio-builder:latest
+    volumes:
+      - ..:/workspace
+      - gradle-cache:/root/.gradle
+    environment:
+      - GRADLE_USER_HOME=/root/.gradle
+    working_dir: /workspace
+
+  build-release:
+    extends:
+      service: builder
+    command: ["/workspace/docker/build.sh", "release"]
+
+  build-debug:
+    extends:
+      service: builder
+    command: ["/workspace/docker/build.sh", "debug"]
+
+volumes:
+  gradle-cache:
+    name: baresip_gradle_cache

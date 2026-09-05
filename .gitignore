@@ -21,3 +21,4 @@ gradle/wrapper/gradle-wrapper.jar
 .sentry-native/
 libbaresip-android/
 *.apk
+/output/

@@ -1,0 +1,161 @@
+name: Build & Release Baresip+
+
+on:
+  push:
+    tags:
+      - 'v*'
+      - '[0-9]+.[0-9]+*'
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build Type'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+          - 'release'
+          - 'debug'
+          - 'both'
+      create_release:
+        description: 'Create GitHub Release for this run'
+        required: false
+        default: true
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      # ------------------------------------------------------------------------
+      # 1. Checkout repository with all submodules
+      # ------------------------------------------------------------------------
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      # ------------------------------------------------------------------------
+      # 2. Setup Java 21 & Gradle cache
+      # ------------------------------------------------------------------------
+      - name: Set up OpenJDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle'
+
+      # ------------------------------------------------------------------------
+      # 3. Setup Android SDK, NDK, and CMake
+      # ------------------------------------------------------------------------
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK & Build Components
+        run: |
+          echo "y" | sdkmanager --licenses > /dev/null 2>&1
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-37" \
+            "platforms;android-36" \
+            "build-tools;35.0.0" \
+            "ndk;29.0.14206865" \
+            "cmake;3.22.1"
+
+      # ------------------------------------------------------------------------
+      # 4. Ensure distribution.video dependency
+      # ------------------------------------------------------------------------
+      - name: Verify or Unpack distribution.video
+        run: |
+          if [ -d "distribution.video" ]; then
+            echo "✅ distribution.video directory found."
+          elif [ -f "distribution.video.tar.xz" ]; then
+            echo "📦 Extracting distribution.video.tar.xz..."
+            tar -xf distribution.video.tar.xz
+          elif [ -f "distribution.video.tar.gz" ]; then
+            echo "📦 Extracting distribution.video.tar.gz..."
+            tar -xzf distribution.video.tar.gz
+          elif [ -n "${{ secrets.DISTRIBUTION_VIDEO_URL }}" ]; then
+            echo "🌐 Downloading distribution.video from secret URL..."
+            curl -fsSL "${{ secrets.DISTRIBUTION_VIDEO_URL }}" -o distribution.video.tar.xz
+            tar -xf distribution.video.tar.xz
+          else
+            echo "⚠️ Notice: distribution.video directory not found."
+            echo "If native libraries were not committed to Git, ensure they are provided or archived."
+          fi
+
+      # ------------------------------------------------------------------------
+      # 5. Build APK using Gradle Wrapper
+      # ------------------------------------------------------------------------
+      - name: Build with Gradle
+        run: |
+          chmod +x ./gradlew
+          BUILD_TARGET="${{ github.event.inputs.build_type || 'release' }}"
+          
+          if [ "$BUILD_TARGET" = "debug" ]; then
+            ./gradlew assembleDebug --no-daemon --stacktrace
+          elif [ "$BUILD_TARGET" = "both" ]; then
+            ./gradlew assembleDebug assembleRelease --no-daemon --stacktrace
+          else
+            ./gradlew assembleRelease --no-daemon --stacktrace
+          fi
+
+      # ------------------------------------------------------------------------
+      # 6. Prepare Artifacts & Checksums
+      # ------------------------------------------------------------------------
+      - name: Prepare Release Artifacts
+        id: prepare_artifacts
+        run: |
+          mkdir -p release-assets
+          VERSION_TAG="${{ github.ref_name }}"
+          [ -z "$VERSION_TAG" ] && VERSION_TAG="latest"
+
+          # Collect and organize release APK
+          if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
+            cp "app/build/outputs/apk/release/app-release.apk" "release-assets/baresip-plus-${VERSION_TAG}-release.apk"
+          fi
+
+          # Collect and organize debug APK (if generated)
+          if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
+            cp "app/build/outputs/apk/debug/app-debug.apk" "release-assets/baresip-plus-${VERSION_TAG}-debug.apk"
+          fi
+
+          # Generate SHA256 checksums
+          cd release-assets
+          if compgen -G "*.apk" > /dev/null; then
+            sha256sum *.apk > SHA256SUMS.txt
+            echo "Generated Checksums:"
+            cat SHA256SUMS.txt
+          fi
+
+      # ------------------------------------------------------------------------
+      # 7. Upload Artifacts to Workflow Run
+      # ------------------------------------------------------------------------
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: baresip-plus-apks
+          path: release-assets/
+          retention-days: 14
+
+      # ------------------------------------------------------------------------
+      # 8. Create GitHub Release (On Tag Push or manual trigger with release enabled)
+      # ------------------------------------------------------------------------
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
